@@ -92,7 +92,6 @@ function closeClientModal() {
 
 function renderDashboard() {
   const b = keyBuckets();
-  const groups = clientGroups();
   const modeButton = state.dashboardMode === 'resumida'
     ? '<button class="dash-toggle" data-dashboard-mode="completa">Ver visualização completa</button>'
     : '<button class="dash-toggle" data-dashboard-mode="resumida">Ver visualização resumida</button>';
@@ -109,14 +108,17 @@ function renderDashboard() {
       <article class="card"><small>Devoluções recentes</small><strong>${b.devolvidasRecentes.length}</strong></article>
     </div>`;
 
-  const agrupadoCliente = `
-    <div class="panel">
-      <h3>Clientes (agrupado)</h3>
-      <div class="cards client-cards">${groups.map((g) => `<article class="card client-card" data-client-card="${g.cliente}"><small>${g.cliente}</small><strong>${g.total}</strong><span>Total de chaves</span></article>`).join('') || '<small>Sem clientes/chaves cadastrados.</small>'}</div>
-    </div>`;
-
   if (state.dashboardMode === 'resumida') {
-    el('dashboard').innerHTML = `${header}${metrics}${agrupadoCliente}`;
+    const resumoPorCategoria = `
+      <div class="dashboard-grid">
+        <div class="panel"><h3>Chaves do Cliente</h3>${renderClientSummaryByCategory(b.clienteAqui)}</div>
+        <div class="panel"><h3>Chaves da Instalação</h3>${renderClientSummaryByCategory(b.instalacaoAqui)}</div>
+        <div class="panel"><h3>Chaves Entregues ao Cliente</h3>${renderClientSummaryByCategory(b.entregueCliente)}</div>
+        <div class="panel"><h3>Chaves de Instalação Entregues ao Cliente</h3>${renderClientSummaryByCategory(b.instalacaoEntregueCliente)}</div>
+        <div class="panel"><h3>Chaves Requisitadas</h3>${renderClientSummaryByCategory(b.requisitadas)}</div>
+        <div class="panel"><h3>Devoluções Recentes</h3>${renderMoveMiniList(b.devolvidasRecentes)}</div>
+      </div>`;
+    el('dashboard').innerHTML = `${header}${metrics}${resumoPorCategoria}`;
     renderChart();
     return;
   }
@@ -133,8 +135,23 @@ function renderDashboard() {
 
   const completaExtra = `<div class="panel"><h3>Lista completa de chaves</h3>${table(['Obra','Porta','Cliente','Destino','Status','Local'], state.chaves.map((c)=>`<tr><td>${obraNome(c.obraId)}</td><td>${portaNome(c.portaId)}</td><td>${state.obras.find((o)=>o.id===c.obraId)?.cliente || '-'}</td><td>${c.tipoDestino}</td><td>${c.statusAtual}</td><td>${c.localAtual || '-'}</td></tr>`))}</div>`;
 
-  el('dashboard').innerHTML = `${header}${metrics}${agrupadoCliente}${kaban}${completaExtra}`;
+  el('dashboard').innerHTML = `${header}${metrics}${kaban}${completaExtra}`;
   renderChart();
+}
+
+function renderClientSummaryByCategory(list) {
+  if (!list.length) return '<small>Sem chaves nesta categoria.</small>';
+  const summary = new Map();
+  list.forEach((c) => {
+    const cliente = (state.obras.find((o) => o.id === c.obraId)?.cliente || 'Sem cliente').trim() || 'Sem cliente';
+    summary.set(cliente, (summary.get(cliente) || 0) + 1);
+  });
+
+  const byClient = [...summary.entries()]
+    .map(([cliente, total]) => ({ cliente, total }))
+    .sort((a, b) => b.total - a.total || a.cliente.localeCompare(b.cliente, 'pt-BR'));
+
+  return `<div class="mini-list">${byClient.map((item) => `<div class="mini-item"><strong>${item.cliente}</strong> • ${item.total} chave(s)</div>`).join('')}</div>`;
 }
 
 function renderKeyMiniList(list) {
