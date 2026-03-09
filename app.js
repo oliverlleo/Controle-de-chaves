@@ -95,7 +95,7 @@ function renderMoveMiniList(list) {
 }
 
 function renderObras() {
-  el('obras-list').innerHTML = table(['Obra', 'Código', 'Cliente', 'Data', 'Ações'], state.obras.map((o) => `<tr><td>${o.nome}</td><td>${o.codigo || '-'}</td><td>${o.cliente || '-'}</td><td>${fmtDate(o.dataCadastro)}</td><td><button data-edit-obra="${o.id}">Editar</button> <button data-del-obra="${o.id}">Excluir</button></td></tr>`));
+  el('obras-list').innerHTML = table(['Obra', 'Código', 'Cliente', 'Endereço', 'Data', 'Ações'], state.obras.map((o) => `<tr><td>${o.nome}</td><td>${o.codigo || '-'}</td><td>${o.cliente || '-'}</td><td>${o.endereco || '-'}</td><td>${fmtDate(o.dataCadastro)}</td><td><button data-edit-obra="${o.id}">Editar</button> <button data-del-obra="${o.id}">Excluir</button></td></tr>`));
   const ops = '<option value="">Selecione a obra</option>' + state.obras.map((o) => `<option value="${o.id}">${o.nome}</option>`).join('');
   el('obra-select').innerHTML = ops;
   el('filter-obra').innerHTML = '<option value="">Todas as obras</option>' + state.obras.map((o) => `<option value="${o.id}">${o.nome}</option>`).join('');
@@ -263,8 +263,30 @@ function bindActions() {
 
     const eid = e.target.dataset.editObra;
     if (eid) {
-      const nome = prompt('Novo nome da obra:');
-      if (nome) await runDb(() => updateDoc(doc(db, 'obras', eid), { nome }), 'Obra atualizada');
+      const obra = state.obras.find((o) => o.id === eid);
+      if (!obra) return toast('Obra não encontrada');
+
+      const nome = prompt('Nome da obra:', obra.nome || '');
+      if (nome === null) return;
+      const codigo = prompt('Código da obra (opcional):', obra.codigo || '');
+      if (codigo === null) return;
+      const cliente = prompt('Cliente (opcional):', obra.cliente || '');
+      if (cliente === null) return;
+      const endereco = prompt('Endereço (opcional):', obra.endereco || '');
+      if (endereco === null) return;
+      const observacoes = prompt('Observações (opcional):', obra.observacoes || '');
+      if (observacoes === null) return;
+
+      await runDb(
+        () => updateDoc(doc(db, 'obras', eid), {
+          nome: nome.trim(),
+          codigo: codigo.trim(),
+          cliente: cliente.trim(),
+          endereco: endereco.trim(),
+          observacoes: observacoes.trim()
+        }),
+        'Obra atualizada'
+      );
     }
 
     const ep = e.target.dataset.editPorta;
