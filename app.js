@@ -265,24 +265,8 @@ function refreshPortaKeyConfig() {
   qtdInstalacaoInput.value = qtdInstalacao;
   const total = qtdCliente + qtdInstalacao;
   totalInput.value = total;
-  submitBtn.textContent = `Salvar porta e gerar ${total} chave(s)`;
-}
-
-function setPortaPreset(preset) {
-  const qtdClienteInput = el('qtd-cliente');
-  const qtdInstalacaoInput = el('qtd-instalacao');
-  if (!qtdClienteInput || !qtdInstalacaoInput) return;
-  if (preset === 'somenteCliente') {
-    qtdClienteInput.value = 2;
-    qtdInstalacaoInput.value = 0;
-  } else if (preset === 'somenteInstalacao') {
-    qtdClienteInput.value = 0;
-    qtdInstalacaoInput.value = 2;
-  } else {
-    qtdClienteInput.value = 2;
-    qtdInstalacaoInput.value = 1;
-  }
-  refreshPortaKeyConfig();
+  submitBtn.disabled = total === 0;
+  submitBtn.textContent = total ? `Salvar porta (${total} chave(s))` : 'Informe ao menos 1 chave';
 }
 
 function bindForms() {
@@ -332,11 +316,15 @@ function bindForms() {
       });
 
       const obraSelecionada = form.obraId.value;
+      const continuarNaMesmaObra = el('keep-obra')?.checked;
       form.querySelector('[name="identificacao"]').value = '';
       form.querySelector('[name="descricao"]').value = '';
       form.querySelector('[name="observacoes"]').value = '';
-      form.obraId.value = obraSelecionada;
-      setPortaPreset('padrao');
+      form.querySelector('#qtd-cliente').value = 2;
+      form.querySelector('#qtd-instalacao').value = 1;
+      if (continuarNaMesmaObra) form.obraId.value = obraSelecionada;
+      else form.obraId.value = '';
+      refreshPortaKeyConfig();
       form.querySelector('[name="identificacao"]').focus();
     }, 'Porta e chaves criadas');
   };
@@ -430,12 +418,6 @@ function bindActions() {
       if (identificacao) await runDb(() => updateDoc(doc(db, 'portas', ep), { identificacao }), 'Porta atualizada');
     }
 
-
-    const preset = e.target.dataset.keyPreset;
-    if (preset) {
-      setPortaPreset(preset);
-      return;
-    }
 
     const mode = e.target.dataset.dashboardMode;
     if (mode) {
