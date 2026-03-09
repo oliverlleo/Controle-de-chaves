@@ -61,23 +61,12 @@
             <h3>Cadastrar Porta</h3>
             <form id="porta-form" class="grid-form">
               <select required name="obraId" id="obra-select"></select>
-              <input required name="identificacao" placeholder="Identificação inicial (ex.: P01)" />
-              <input id="qtd-portas" name="qtdPortas" type="number" min="1" max="50" value="1" placeholder="Qtd. de portas" />
-              <input name="descricao" placeholder="Descrição da porta" />
-              <div class="key-config" id="key-config">
-                <label>Qtd. cliente
-                  <input id="qtd-cliente" name="qtdCliente" type="number" min="0" max="20" value="2" />
-                </label>
-                <label>Qtd. instalação
-                  <input id="qtd-instalacao" name="qtdInstalacao" type="number" min="0" max="20" value="1" />
-                </label>
-                <label>Total
-                  <input id="qtd-total" name="totalChaves" type="number" value="3" readonly />
-                </label>
-              </div>
               <textarea name="observacoes" placeholder="Observações"></textarea>
-              <label class="check-inline"><input id="keep-obra" type="checkbox" checked />Manter obra selecionada após salvar</label>
-              <button id="save-porta-btn" type="submit">Salvar porta (3 chave(s))</button>
+              <div id="porta-rows" class="porta-rows"></div>
+              <div class="porta-actions">
+                <button type="button" id="add-porta-row" class="ghost-btn">+ Adicionar outra porta</button>
+                <button id="save-porta-btn" type="submit">Salvar 1 porta(s) • 3 chave(s)</button>
+              </div>
             </form>
           </div>
           <div class="panel"><h3>Lista de Portas</h3><div id="portas-list"></div></div>
