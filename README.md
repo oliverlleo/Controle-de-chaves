@@ -12,6 +12,9 @@ Sistema web para controle de chaves por obra/porta com Firebase Firestore + aute
 - Busca global e filtros por obra/destino/status
 - Layout moderno com paleta vermelho/preto/branco e animações suaves
 - Tratamento de falhas de autenticação/permissão com alerta visual no topo
+- Movimentação rápida por cartões de chave com ações contextuais por tipo (cliente/instalação)
+- Bloqueio de operação inválida (ex.: chave de cliente não pode ser entregue ao instalador)
+- Devolução obrigatória com nome e data/hora
 
 ## Estrutura
 - `index.html`: estrutura e telas

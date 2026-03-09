@@ -59,3 +59,18 @@ button[type="submit"]:hover { transform: translateY(-1px); background: #ff3047; 
   padding: 10px 12px;
   font-size: 0.9rem;
 }
+
+.dashboard-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(280px,1fr)); gap: 10px; }
+.mini-list { display:grid; gap: 6px; }
+.mini-item { padding: 8px; border:1px solid #34343d; border-radius: 8px; background:#151518; }
+.key-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(280px,1fr)); gap: 10px; margin-top: 10px; }
+.key-card { background:#19191d; border:1px solid #363640; border-radius: 12px; padding: 12px; }
+.key-card h4 { margin: 0 0 8px; }
+.key-card p { margin: 0 0 8px; }
+.key-actions { display:grid; gap: 8px; margin-top: 10px; }
+.key-actions button { background:#2a2a31; border:1px solid #40404b; cursor:pointer; }
+.key-actions button:hover { border-color:#ff4f66; }
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,.55); display:grid; place-items: center; z-index: 10; }
+.modal-card { width: min(680px, 92vw); background:#17171b; border:1px solid #393944; border-radius: 16px; padding: 16px; }
+.modal-actions { display:flex; gap: 10px; grid-column: 1 / -1; }
+#cancel-movement { background:#2b2b32; }

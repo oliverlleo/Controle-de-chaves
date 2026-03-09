@@ -84,20 +84,9 @@
 
         <section id="movimentacoes" class="page">
           <div class="panel">
-            <h3>Registrar Ação</h3>
-            <form id="mov-form" class="grid-form">
-              <select required name="chaveId" id="mov-chave"></select>
-              <select required name="tipoMovimentacao">
-                <option value="requisicao">Requisição</option>
-                <option value="devolucao">Devolução</option>
-                <option value="entrega_cliente">Entrega ao Cliente</option>
-                <option value="entrega_instalador">Entrega ao Instalador</option>
-              </select>
-              <input required name="nomePessoa" placeholder="Nome da pessoa" />
-              <input name="categoriaPessoa" placeholder="Categoria/Papel" />
-              <textarea name="observacao" placeholder="Observação"></textarea>
-              <button type="submit">Registrar movimentação</button>
-            </form>
+            <h3>Movimentação rápida por chave</h3>
+            <input id="mov-search" placeholder="Filtrar cartões por obra, porta ou tipo..." />
+            <div id="mov-cards" class="key-grid"></div>
           </div>
         </section>
 
@@ -112,6 +101,22 @@
           </div>
         </section>
       </main>
+    </div>
+
+    <div id="movement-modal" class="modal" hidden>
+      <div class="modal-card">
+        <h3 id="modal-title">Registrar movimentação</h3>
+        <form id="movement-form" class="grid-form">
+          <input id="mv-person" required placeholder="Nome da pessoa" />
+          <input id="mv-role" placeholder="Categoria/Papel (opcional)" />
+          <input id="mv-datetime" type="datetime-local" required />
+          <textarea id="mv-note" placeholder="Observação (opcional)"></textarea>
+          <div class="modal-actions">
+            <button type="button" id="cancel-movement">Cancelar</button>
+            <button type="submit">Confirmar</button>
+          </div>
+        </form>
+      </div>
     </div>
 
     <div id="toast"></div>

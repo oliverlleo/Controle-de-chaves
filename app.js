@@ -3,17 +3,16 @@ import {
   serverTimestamp, query, orderBy, onSnapshot
 } from './firebase.js';
 
-const state = { uid: 'sem-auth', obras: [], portas: [], chaves: [], movimentacoes: [], authOk: false };
-const STATUSES = ['disponivel_empresa', 'separada_cliente', 'separada_instalacao', 'requisitada', 'entregue_cliente', 'entregue_instalador', 'devolvida', 'indisponivel'];
+const state = { uid: 'sem-auth', obras: [], portas: [], chaves: [], movimentacoes: [], authOk: false, pendingMove: null };
+const STATUSES = ['separada_cliente', 'separada_instalacao', 'requisitada', 'entregue_cliente', 'entregue_instalador', 'indisponivel'];
 const el = (id) => document.getElementById(id);
 const toast = (msg) => { const t = el('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2200); };
 
 function setAlert(msg) {
   const box = el('system-alert');
   if (!box) return;
-  if (!msg) { box.hidden = true; box.textContent = ''; return; }
-  box.hidden = false;
-  box.textContent = msg;
+  box.hidden = !msg;
+  box.textContent = msg || '';
 }
 
 function humanizeError(err) {
@@ -36,35 +35,63 @@ async function runDb(action, successMessage = '') {
   }
 }
 
-function bindNavigation() {
-  document.querySelectorAll('#main-nav button').forEach((btn) => btn.onclick = () => {
-    document.querySelectorAll('#main-nav button').forEach((b) => b.classList.remove('active'));
-    btn.classList.add('active');
-    document.querySelectorAll('.page').forEach((p) => p.classList.remove('active'));
-    el(btn.dataset.target).classList.add('active');
-  });
-}
-
-function fmtDate(ts) {
+const obraNome = (id) => state.obras.find((o) => o.id === id)?.nome || '-';
+const portaNome = (id) => state.portas.find((p) => p.id === id)?.identificacao || '-';
+const fmtDate = (ts) => {
   const d = ts?.toDate ? ts.toDate() : ts?.seconds ? new Date(ts.seconds * 1000) : ts ? new Date(ts) : null;
   return d ? d.toLocaleString('pt-BR') : '-';
+};
+const isoLocal = () => {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 16);
+};
+
+function table(headers, rows) {
+  return `<table class="table"><thead><tr>${headers.map((h) => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('') || '<tr><td colspan="99">Sem dados</td></tr>'}</tbody></table>`;
 }
-function table(headers, rows) { return `<table class="table"><thead><tr>${headers.map((h) => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('') || '<tr><td colspan="99">Sem dados</td></tr>'}</tbody></table>`; }
+
+function keyBuckets() {
+  return {
+    clienteAqui: state.chaves.filter((c) => c.disponivelAqui && c.tipoDestino === 'cliente' && c.statusAtual !== 'entregue_cliente'),
+    instalacaoAqui: state.chaves.filter((c) => c.disponivelAqui && c.tipoDestino === 'instalacao' && c.statusAtual !== 'entregue_instalador'),
+    entregueCliente: state.chaves.filter((c) => c.statusAtual === 'entregue_cliente'),
+    entregueInstalador: state.chaves.filter((c) => c.statusAtual === 'entregue_instalador'),
+    requisitadas: state.chaves.filter((c) => c.statusAtual === 'requisitada'),
+    devolvidasRecentes: state.movimentacoes.filter((m) => m.tipoMovimentacao === 'devolucao').slice(0, 8)
+  };
+}
 
 function renderDashboard() {
-  const count = (f) => state.chaves.filter(f).length;
-  el('dashboard').innerHTML = `<div class="cards">${[
-    ['Total de chaves cadastradas', state.chaves.length],
-    ['Chaves na empresa', count((c) => c.disponivelAqui)],
-    ['Separadas para cliente', count((c) => c.statusAtual === 'separada_cliente')],
-    ['Separadas para instalação', count((c) => c.statusAtual === 'separada_instalacao')],
-    ['Entregues ao cliente', count((c) => c.statusAtual === 'entregue_cliente')],
-    ['Entregues ao instalador', count((c) => c.statusAtual === 'entregue_instalador')],
-    ['Atualmente requisitadas', count((c) => c.requisitada)],
-    ['Devolvidas', count((c) => c.statusAtual === 'devolvida')]
-  ].map(([t, v]) => `<article class="card"><small>${t}</small><strong>${v}</strong></article>`).join('')}</div>
-  <div class="panel"><h3>Últimas movimentações</h3><div class="timeline">${state.movimentacoes.slice(0, 6).map((m) => `<div class="timeline-item"><b>${m.tipoMovimentacao}</b> - ${m.nomePessoa || 'N/A'}<br/><small>${fmtDate(m.dataHora)}</small></div>`).join('') || '<small>Sem movimentações</small>'}</div></div>`;
+  const b = keyBuckets();
+  el('dashboard').innerHTML = `
+    <div class="cards">
+      <article class="card"><small>Cliente disponíveis aqui</small><strong>${b.clienteAqui.length}</strong></article>
+      <article class="card"><small>Instalação disponíveis aqui</small><strong>${b.instalacaoAqui.length}</strong></article>
+      <article class="card"><small>Entregues ao cliente</small><strong>${b.entregueCliente.length}</strong></article>
+      <article class="card"><small>Com instalador (entrega)</small><strong>${b.entregueInstalador.length}</strong></article>
+      <article class="card"><small>Atualmente requisitadas</small><strong>${b.requisitadas.length}</strong></article>
+      <article class="card"><small>Devoluções recentes</small><strong>${b.devolvidasRecentes.length}</strong></article>
+    </div>
+    <div class="dashboard-grid">
+      <div class="panel"><h3>Estas são as chaves do cliente que estão aqui</h3>${renderKeyMiniList(b.clienteAqui)}</div>
+      <div class="panel"><h3>Estas são as chaves da instalação que estão aqui</h3>${renderKeyMiniList(b.instalacaoAqui)}</div>
+      <div class="panel"><h3>Estas foram entregues ao cliente</h3>${renderKeyMiniList(b.entregueCliente)}</div>
+      <div class="panel"><h3>Estas foram entregues ao instalador</h3>${renderKeyMiniList(b.entregueInstalador)}</div>
+      <div class="panel"><h3>Estas estão atualmente requisitadas</h3>${renderKeyMiniList(b.requisitadas)}</div>
+      <div class="panel"><h3>Estas foram devolvidas recentemente</h3>${renderMoveMiniList(b.devolvidasRecentes)}</div>
+    </div>`;
   renderChart();
+}
+
+function renderKeyMiniList(list) {
+  if (!list.length) return '<small>Sem chaves nesta categoria.</small>';
+  return `<div class="mini-list">${list.slice(0, 8).map((c) => `<div class="mini-item">${obraNome(c.obraId)} • ${portaNome(c.portaId)} <span class="badge b-${c.tipoDestino}">${c.tipoDestino}</span></div>`).join('')}</div>`;
+}
+
+function renderMoveMiniList(list) {
+  if (!list.length) return '<small>Sem devoluções recentes.</small>';
+  return `<div class="mini-list">${list.map((m) => `<div class="mini-item">${m.nomePessoa || '-'} • ${fmtDate(m.dataHora)}</div>`).join('')}</div>`;
 }
 
 function renderObras() {
@@ -75,7 +102,6 @@ function renderObras() {
 }
 
 function renderPortas() {
-  const obraNome = (id) => state.obras.find((o) => o.id === id)?.nome || '-';
   el('portas-list').innerHTML = table(['Obra', 'Porta', 'Descrição', 'Padrão', 'Ações'], state.portas.map((p) => `<tr><td>${obraNome(p.obraId)}</td><td>${p.identificacao}</td><td>${p.descricao || '-'}</td><td>2 cliente / 1 instalação</td><td><button data-edit-porta="${p.id}">Editar</button> <button data-del-porta="${p.id}">Excluir</button></td></tr>`));
 }
 
@@ -84,13 +110,37 @@ function renderChaves() {
   const status = el('filter-status').value;
   const obraId = el('filter-obra').value;
   const q = el('global-search').value.toLowerCase();
-  const obraNome = (id) => state.obras.find((o) => o.id === id)?.nome || '-';
-  const portaNome = (id) => state.portas.find((p) => p.id === id)?.identificacao || '-';
   const list = state.chaves.filter((c) => (!destino || c.tipoDestino === destino) && (!status || c.statusAtual === status) && (!obraId || c.obraId === obraId))
     .filter((c) => `${obraNome(c.obraId)} ${portaNome(c.portaId)} ${c.statusAtual} ${c.tipoDestino}`.toLowerCase().includes(q));
 
-  el('chaves-list').innerHTML = table(['Obra', 'Porta', 'Destino', 'Status', 'Disponível Aqui', 'Ações'], list.map((c) => `<tr><td>${obraNome(c.obraId)}</td><td>${portaNome(c.portaId)}</td><td><span class="badge b-${c.tipoDestino}">${c.tipoDestino}</span></td><td><span class="badge b-status">${c.statusAtual}</span></td><td>${c.disponivelAqui ? 'Sim' : 'Não'}</td><td><button data-del-chave="${c.id}">Excluir</button></td></tr>`));
-  el('mov-chave').innerHTML = '<option value="">Selecione a chave</option>' + list.map((c) => `<option value="${c.id}">${obraNome(c.obraId)} / ${portaNome(c.portaId)} / ${c.tipoDestino} / ${c.statusAtual}</option>`).join('');
+  el('chaves-list').innerHTML = table(['Obra', 'Porta', 'Destino', 'Status', 'Aqui?', 'Local atual', 'Ações'], list.map((c) => `<tr><td>${obraNome(c.obraId)}</td><td>${portaNome(c.portaId)}</td><td><span class="badge b-${c.tipoDestino}">${c.tipoDestino}</span></td><td><span class="badge b-status">${c.statusAtual}</span></td><td>${c.disponivelAqui ? 'Sim' : 'Não'}</td><td>${c.localAtual || '-'}</td><td><button data-del-chave="${c.id}">Excluir</button></td></tr>`));
+}
+
+function getAllowedActions(chave) {
+  const actions = [];
+  const isCliente = chave.tipoDestino === 'cliente';
+  const isInst = chave.tipoDestino === 'instalacao';
+  if (chave.statusAtual === 'requisitada') actions.push({ type: 'devolucao', label: 'Devolver' });
+  if (chave.disponivelAqui && isCliente && chave.statusAtual !== 'entregue_cliente') {
+    actions.push({ type: 'requisicao', label: 'Requisitar (Cliente)' });
+    actions.push({ type: 'entrega_cliente', label: 'Entregar definitivo ao Cliente' });
+  }
+  if (chave.disponivelAqui && isInst && chave.statusAtual !== 'entregue_instalador') {
+    actions.push({ type: 'requisicao', label: 'Requisitar (Instalação)' });
+    actions.push({ type: 'entrega_instalador', label: 'Entregar definitivo ao Instalador' });
+  }
+  return actions;
+}
+
+function renderMovimentacoes() {
+  const q = (el('mov-search').value || '').toLowerCase();
+  const cards = state.chaves
+    .filter((c) => `${obraNome(c.obraId)} ${portaNome(c.portaId)} ${c.tipoDestino} ${c.statusAtual}`.toLowerCase().includes(q))
+    .map((c) => {
+      const actions = getAllowedActions(c).map((a) => `<button data-move-key="${c.id}" data-move-type="${a.type}">${a.label}</button>`).join('');
+      return `<article class="key-card"><h4>${obraNome(c.obraId)} • ${portaNome(c.portaId)}</h4><p><span class="badge b-${c.tipoDestino}">${c.tipoDestino}</span> <span class="badge b-status">${c.statusAtual}</span></p><small>Local: ${c.localAtual || 'empresa'}</small><div class="key-actions">${actions || '<small>Sem ações disponíveis</small>'}</div></article>`;
+    }).join('');
+  el('mov-cards').innerHTML = cards || '<small>Nenhuma chave encontrada.</small>';
 }
 
 function renderHistorico() {
@@ -101,22 +151,42 @@ function renderChart() {
   const ctx = el('status-chart');
   if (!ctx || !window.Chart) return;
   if (window._chart) window._chart.destroy();
-  window._chart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: ['Na empresa', 'Requisitada', 'Entregue Cliente', 'Entregue Instalador', 'Devolvida'],
-      datasets: [{
-        data: [
-          state.chaves.filter((c) => c.disponivelAqui).length,
-          state.chaves.filter((c) => c.requisitada).length,
-          state.chaves.filter((c) => c.statusAtual === 'entregue_cliente').length,
-          state.chaves.filter((c) => c.statusAtual === 'entregue_instalador').length,
-          state.chaves.filter((c) => c.statusAtual === 'devolvida').length
-        ],
-        backgroundColor: ['#e0182d', '#ff6c7d', '#6d80ff', '#3ec6ff', '#15b67b']
-      }]
-    },
-    options: { plugins: { legend: { display: false } } }
+  window._chart = new Chart(ctx, { type: 'bar', data: { labels: ['Aqui', 'Requisitada', 'Entregue Cliente', 'Entregue Instalador'], datasets: [{ data: [
+    state.chaves.filter((c) => c.disponivelAqui).length,
+    state.chaves.filter((c) => c.statusAtual === 'requisitada').length,
+    state.chaves.filter((c) => c.statusAtual === 'entregue_cliente').length,
+    state.chaves.filter((c) => c.statusAtual === 'entregue_instalador').length
+  ], backgroundColor: ['#e0182d', '#ff6c7d', '#6d80ff', '#3ec6ff'] }] }, options: { plugins: { legend: { display: false } } } });
+}
+
+async function applyMovement(chaveId, type, payload) {
+  const chaveRef = doc(db, 'chaves', chaveId);
+  const snap = await getDoc(chaveRef);
+  if (!snap.exists()) return toast('Chave não encontrada');
+  const chave = snap.data();
+
+  if (type === 'entrega_cliente' && chave.tipoDestino !== 'cliente') return toast('Esta chave não pode ser entregue ao cliente.');
+  if (type === 'entrega_instalador' && chave.tipoDestino !== 'instalacao') return toast('Esta chave não pode ser entregue ao instalador.');
+
+  const resetStatus = chave.tipoDestino === 'cliente' ? 'separada_cliente' : 'separada_instalacao';
+  const patch = {
+    requisicao: { statusAtual: 'requisitada', requisitada: true, disponivelAqui: false, localAtual: payload.nomePessoa },
+    devolucao: { statusAtual: resetStatus, requisitada: false, disponivelAqui: true, localAtual: 'empresa', dataUltimaDevolucao: payload.dataHoraISO, quemDevolveu: payload.nomePessoa },
+    entrega_cliente: { statusAtual: 'entregue_cliente', entregue: true, requisitada: false, disponivelAqui: false, localAtual: payload.nomePessoa },
+    entrega_instalador: { statusAtual: 'entregue_instalador', entregue: true, requisitada: false, disponivelAqui: false, localAtual: payload.nomePessoa }
+  };
+
+  await updateDoc(chaveRef, patch[type]);
+  await addDoc(collection(db, 'movimentacoes'), {
+    chaveId,
+    obraId: chave.obraId,
+    portaId: chave.portaId,
+    tipoMovimentacao: type,
+    nomePessoa: payload.nomePessoa,
+    categoriaPessoa: payload.categoriaPessoa || '',
+    observacao: payload.observacao || '',
+    dataHora: new Date(payload.dataHoraISO),
+    usuarioAnonimoId: state.uid
   });
 }
 
@@ -143,31 +213,43 @@ function bindForms() {
     }, 'Porta e chaves criadas');
   };
 
-  el('mov-form').onsubmit = async (e) => {
-    e.preventDefault();
-    const data = Object.fromEntries(new FormData(e.target));
-    await runDb(async () => {
-      const chaveRef = doc(db, 'chaves', data.chaveId);
-      const snap = await getDoc(chaveRef);
-      if (!snap.exists()) { toast('Chave não encontrada'); return; }
-      const chave = snap.data();
-      const patchMap = {
-        requisicao: { statusAtual: 'requisitada', requisitada: true, disponivelAqui: false, localAtual: data.nomePessoa },
-        devolucao: { statusAtual: 'devolvida', requisitada: false, disponivelAqui: true, localAtual: 'empresa' },
-        entrega_cliente: { statusAtual: 'entregue_cliente', entregue: true, requisitada: false, disponivelAqui: false, localAtual: data.nomePessoa },
-        entrega_instalador: { statusAtual: 'entregue_instalador', entregue: true, requisitada: false, disponivelAqui: false, localAtual: data.nomePessoa }
-      };
-      await updateDoc(chaveRef, patchMap[data.tipoMovimentacao]);
-      await addDoc(collection(db, 'movimentacoes'), { chaveId: data.chaveId, obraId: chave.obraId, portaId: chave.portaId, tipoMovimentacao: data.tipoMovimentacao, nomePessoa: data.nomePessoa, categoriaPessoa: data.categoriaPessoa || '', observacao: data.observacao || '', dataHora: serverTimestamp(), usuarioAnonimoId: state.uid });
-      e.target.reset();
-    }, 'Movimentação registrada');
-  };
-
   el('filter-destino').onchange = renderChaves;
   el('filter-status').onchange = renderChaves;
   el('filter-obra').onchange = renderChaves;
-  el('global-search').oninput = renderChaves;
+  el('global-search').oninput = () => { renderChaves(); renderMovimentacoes(); };
+  el('mov-search').oninput = renderMovimentacoes;
   el('filter-status').innerHTML = '<option value="">Todos os status</option>' + STATUSES.map((s) => `<option value="${s}">${s}</option>`).join('');
+
+  el('movement-form').onsubmit = async (e) => {
+    e.preventDefault();
+    if (!state.pendingMove) return;
+    const payload = {
+      nomePessoa: el('mv-person').value.trim(),
+      categoriaPessoa: el('mv-role').value.trim(),
+      observacao: el('mv-note').value.trim(),
+      dataHoraISO: el('mv-datetime').value
+    };
+    if (!payload.nomePessoa || !payload.dataHoraISO) return toast('Informe nome e data/hora.');
+    await runDb(() => applyMovement(state.pendingMove.keyId, state.pendingMove.type, payload), 'Movimentação registrada');
+    closeModal();
+  };
+
+  el('cancel-movement').onclick = closeModal;
+}
+
+function openModal(keyId, type) {
+  state.pendingMove = { keyId, type };
+  el('modal-title').textContent = `Confirmar ${type.replace('_', ' ')}`;
+  el('mv-person').value = '';
+  el('mv-role').value = '';
+  el('mv-note').value = '';
+  el('mv-datetime').value = isoLocal();
+  el('movement-modal').hidden = false;
+}
+
+function closeModal() {
+  state.pendingMove = null;
+  el('movement-modal').hidden = true;
 }
 
 function bindActions() {
@@ -192,26 +274,27 @@ function bindActions() {
       const identificacao = prompt('Nova identificação da porta:');
       if (identificacao) await runDb(() => updateDoc(doc(db, 'portas', ep), { identificacao }), 'Porta atualizada');
     }
+
+    const moveKey = e.target.dataset.moveKey;
+    const moveType = e.target.dataset.moveType;
+    if (moveKey && moveType) openModal(moveKey, moveType);
   });
 }
 
 function bindCollection(name, setter) {
-  onSnapshot(
-    query(collection(db, name), orderBy(name === 'movimentacoes' ? 'dataHora' : 'dataCadastro', 'desc')),
-    (snap) => {
-      setter(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-      renderObras();
-      renderPortas();
-      renderChaves();
-      renderDashboard();
-      renderHistorico();
-    },
-    (error) => {
-      const msg = humanizeError(error);
-      setAlert(msg);
-      toast(msg);
-    }
-  );
+  onSnapshot(query(collection(db, name), orderBy(name === 'movimentacoes' ? 'dataHora' : 'dataCadastro', 'desc')), (snap) => {
+    setter(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    renderObras();
+    renderPortas();
+    renderChaves();
+    renderDashboard();
+    renderHistorico();
+    renderMovimentacoes();
+  }, (error) => {
+    const msg = humanizeError(error);
+    setAlert(msg);
+    toast(msg);
+  });
 }
 
 function subscribe() {
@@ -219,6 +302,15 @@ function subscribe() {
   bindCollection('portas', (rows) => { state.portas = rows; });
   bindCollection('chaves', (rows) => { state.chaves = rows; });
   bindCollection('movimentacoes', (rows) => { state.movimentacoes = rows; });
+}
+
+function bindNavigation() {
+  document.querySelectorAll('#main-nav button').forEach((btn) => btn.onclick = () => {
+    document.querySelectorAll('#main-nav button').forEach((b) => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.page').forEach((p) => p.classList.remove('active'));
+    el(btn.dataset.target).classList.add('active');
+  });
 }
 
 (async function init() {
@@ -236,9 +328,7 @@ function subscribe() {
     const code = authResult.code || 'erro-desconhecido';
     state.uid = 'sem-auth';
     el('uid-display').textContent = `${state.uid} (${code})`;
-
-    const authMessage = humanizeError(authResult.error || { code });
-    setAlert(`Falha ao autenticar anonimamente: ${authMessage} (código: ${code}).`);
+    setAlert(`Falha ao autenticar anonimamente: ${humanizeError(authResult.error || { code })} (código: ${code}).`);
   }
 
   subscribe();
