@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Controle de Chaves</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <h1>Key<span>Track</span></h1>
+        <nav id="main-nav">
+          <button data-target="dashboard" class="active">Dashboard</button>
+          <button data-target="obras">Obras</button>
+          <button data-target="portas">Portas</button>
+          <button data-target="chaves">Chaves</button>
+          <button data-target="movimentacoes">Movimentações</button>
+          <button data-target="historico">Histórico</button>
+          <button data-target="relatorios">Relatórios</button>
+        </nav>
+        <div class="uid-box">
+          <small>UID Anônimo</small>
+          <code id="uid-display">Conectando...</code>
+        </div>
+      </aside>
+
+      <main>
+        <header>
+          <div id="system-alert" class="system-alert" hidden></div>
+          <div>
+            <h2>Controle de Chaves</h2>
+            <p>Rastreabilidade total por obra, porta e movimentação.</p>
+          </div>
+          <input id="global-search" placeholder="Buscar obra, porta, pessoa ou status..." />
+        </header>
+
+        <section id="dashboard" class="page active"></section>
+
+        <section id="obras" class="page">
+          <div class="panel">
+            <h3>Cadastrar Obra</h3>
+            <form id="obra-form" class="grid-form">
+              <input required name="nome" placeholder="Nome da obra" />
+              <input name="codigo" placeholder="Código da obra (opcional)" />
+              <input name="cliente" placeholder="Cliente (opcional)" />
+              <input name="endereco" placeholder="Endereço (opcional)" />
+              <textarea name="observacoes" placeholder="Observações"></textarea>
+              <button type="submit">Salvar obra</button>
+            </form>
+          </div>
+          <div class="panel"><h3>Lista de Obras</h3><div id="obras-list"></div></div>
+        </section>
+
+        <section id="portas" class="page">
+          <div class="panel">
+            <h3>Cadastrar Porta</h3>
+            <form id="porta-form" class="grid-form">
+              <select required name="obraId" id="obra-select"></select>
+              <input required name="identificacao" placeholder="Identificação da porta (ex.: P01)" />
+              <input name="descricao" placeholder="Descrição da porta" />
+              <textarea name="observacoes" placeholder="Observações"></textarea>
+              <button type="submit">Salvar porta e gerar 3 chaves</button>
+            </form>
+          </div>
+          <div class="panel"><h3>Lista de Portas</h3><div id="portas-list"></div></div>
+        </section>
+
+        <section id="chaves" class="page">
+          <div class="panel">
+            <h3>Filtros de Chaves</h3>
+            <div class="filters">
+              <select id="filter-destino"><option value="">Todos os destinos</option><option value="cliente">Cliente</option><option value="instalacao">Instalação</option></select>
+              <select id="filter-status"><option value="">Todos os status</option></select>
+              <select id="filter-obra"><option value="">Todas as obras</option></select>
+            </div>
+          </div>
+          <div class="panel"><h3>Lista de Chaves</h3><div id="chaves-list"></div></div>
+        </section>
+
+        <section id="movimentacoes" class="page">
+          <div class="panel">
+            <h3>Movimentação rápida por chave</h3>
+            <input id="mov-search" placeholder="Filtrar cartões por obra, porta ou tipo..." />
+            <div id="mov-cards" class="key-grid"></div>
+          </div>
+        </section>
+
+        <section id="historico" class="page">
+          <div class="panel"><h3>Timeline de movimentações</h3><div id="historico-list"></div></div>
+        </section>
+
+        <section id="relatorios" class="page">
+          <div class="panel">
+            <h3>Indicadores</h3>
+            <canvas id="status-chart" height="120"></canvas>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div id="movement-modal" class="modal" hidden>
+      <div class="modal-card">
+        <h3 id="modal-title">Movimentar chave</h3>
+        <form id="movement-form" class="grid-form">
+          <input id="mv-person" required placeholder="Nome da pessoa" />
+          <input id="mv-role" placeholder="Categoria/Papel (opcional)" />
+          <input id="mv-datetime" type="datetime-local" required />
+          <textarea id="mv-note" placeholder="Observação (opcional)"></textarea>
+          <div class="modal-actions">
+            <button type="button" id="cancel-movement">Cancelar</button>
+            <button type="submit">Confirmar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+
+
+    <div id="client-keys-modal" class="modal" hidden>
+      <div class="modal-card modal-lg">
+        <h3 id="client-modal-title">Chaves do cliente</h3>
+        <div id="client-modal-body"></div>
+        <div class="modal-actions">
+          <button type="button" id="close-client-modal">Fechar</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast"></div>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
