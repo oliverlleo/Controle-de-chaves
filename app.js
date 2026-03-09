@@ -49,8 +49,8 @@ const isoLocal = () => {
 
 
 const STATUS_META = {
-  separada_cliente: { label: 'Disponível na empresa (Cliente)', cls: 'st-separada-cliente' },
-  separada_instalacao: { label: 'Disponível na empresa (Instalação)', cls: 'st-separada-instalacao' },
+  separada_cliente: { label: 'Disponível para Cliente', cls: 'st-separada-cliente' },
+  separada_instalacao: { label: 'Disponível para Instalação', cls: 'st-separada-instalacao' },
   requisitada: { label: 'Em posse de responsável', cls: 'st-requisitada' },
   entregue_cliente: { label: 'Entrega confirmada ao cliente', cls: 'st-entregue-cliente' },
   indisponivel: { label: 'Indisponível', cls: 'st-indisponivel' }
