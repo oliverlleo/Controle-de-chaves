@@ -109,6 +109,18 @@ function renderDashboard() {
       <article class="card"><small>Devoluções recentes</small><strong>${b.devolvidasRecentes.length}</strong></article>
     </div>`;
 
+  const agrupadoCliente = `
+    <div class="panel">
+      <h3>Clientes (agrupado)</h3>
+      <div class="cards client-cards">${groups.map((g) => `<article class="card client-card" data-client-card="${g.cliente}"><small>${g.cliente}</small><strong>${g.total}</strong><span>Total de chaves</span></article>`).join('') || '<small>Sem clientes/chaves cadastrados.</small>'}</div>
+    </div>`;
+
+  if (state.dashboardMode === 'resumida') {
+    el('dashboard').innerHTML = `${header}${metrics}${agrupadoCliente}`;
+    renderChart();
+    return;
+  }
+
   const kaban = `
     <div class="dashboard-grid">
       <div class="panel"><h3>Chaves do Cliente</h3>${renderKeyMiniList(b.clienteAqui)}</div>
@@ -119,20 +131,9 @@ function renderDashboard() {
       <div class="panel"><h3>Devoluções Recentes</h3>${renderMoveMiniList(b.devolvidasRecentes)}</div>
     </div>`;
 
-  const agrupadoCliente = `
-    <div class="panel">
-      <h3>Clientes (agrupado)</h3>
-      <div class="cards client-cards">${groups.map((g) => `<article class="card client-card" data-client-card="${g.cliente}"><small>${g.cliente}</small><strong>${g.total}</strong><span>Total de chaves</span></article>`).join('') || '<small>Sem clientes/chaves cadastrados.</small>'}</div>
-    </div>`;
-
-  if (state.dashboardMode === 'resumida') {
-    el('dashboard').innerHTML = `${header}${metrics}${kaban}${agrupadoCliente}`;
-    renderChart();
-    return;
-  }
-
   const completaExtra = `<div class="panel"><h3>Lista completa de chaves</h3>${table(['Obra','Porta','Cliente','Destino','Status','Local'], state.chaves.map((c)=>`<tr><td>${obraNome(c.obraId)}</td><td>${portaNome(c.portaId)}</td><td>${state.obras.find((o)=>o.id===c.obraId)?.cliente || '-'}</td><td>${c.tipoDestino}</td><td>${c.statusAtual}</td><td>${c.localAtual || '-'}</td></tr>`))}</div>`;
-  el('dashboard').innerHTML = `${header}${metrics}${kaban}${agrupadoCliente}${completaExtra}`;
+
+  el('dashboard').innerHTML = `${header}${metrics}${agrupadoCliente}${kaban}${completaExtra}`;
   renderChart();
 }
 
