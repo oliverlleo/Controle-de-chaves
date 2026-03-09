@@ -4,7 +4,7 @@ import {
 } from './firebase.js';
 
 const state = { uid: 'sem-auth', obras: [], portas: [], chaves: [], movimentacoes: [], authOk: false, pendingMove: null };
-const STATUSES = ['separada_cliente', 'separada_instalacao', 'requisitada', 'entregue_cliente', 'entregue_instalador', 'indisponivel'];
+const STATUSES = ['separada_cliente', 'separada_instalacao', 'requisitada', 'entregue_cliente', 'indisponivel'];
 const el = (id) => document.getElementById(id);
 const toast = (msg) => { const t = el('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2200); };
 
@@ -54,9 +54,9 @@ function table(headers, rows) {
 function keyBuckets() {
   return {
     clienteAqui: state.chaves.filter((c) => c.disponivelAqui && c.tipoDestino === 'cliente' && c.statusAtual !== 'entregue_cliente'),
-    instalacaoAqui: state.chaves.filter((c) => c.disponivelAqui && c.tipoDestino === 'instalacao' && c.statusAtual !== 'entregue_instalador'),
+    instalacaoAqui: state.chaves.filter((c) => c.disponivelAqui && c.tipoDestino === 'instalacao' && c.statusAtual !== 'entregue_cliente'),
     entregueCliente: state.chaves.filter((c) => c.statusAtual === 'entregue_cliente'),
-    entregueInstalador: state.chaves.filter((c) => c.statusAtual === 'entregue_instalador'),
+    instalacaoEntregueCliente: state.chaves.filter((c) => c.tipoDestino === 'instalacao' && c.statusAtual === 'entregue_cliente'),
     requisitadas: state.chaves.filter((c) => c.statusAtual === 'requisitada'),
     devolvidasRecentes: state.movimentacoes.filter((m) => m.tipoMovimentacao === 'devolucao').slice(0, 8)
   };
@@ -69,7 +69,7 @@ function renderDashboard() {
       <article class="card"><small>Cliente disponíveis aqui</small><strong>${b.clienteAqui.length}</strong></article>
       <article class="card"><small>Instalação disponíveis aqui</small><strong>${b.instalacaoAqui.length}</strong></article>
       <article class="card"><small>Entregues ao cliente</small><strong>${b.entregueCliente.length}</strong></article>
-      <article class="card"><small>Com instalador (entrega)</small><strong>${b.entregueInstalador.length}</strong></article>
+      <article class="card"><small>Chaves de instalação entregues ao cliente</small><strong>${b.instalacaoEntregueCliente.length}</strong></article>
       <article class="card"><small>Atualmente requisitadas</small><strong>${b.requisitadas.length}</strong></article>
       <article class="card"><small>Devoluções recentes</small><strong>${b.devolvidasRecentes.length}</strong></article>
     </div>
@@ -77,7 +77,7 @@ function renderDashboard() {
       <div class="panel"><h3>Chaves do Cliente</h3>${renderKeyMiniList(b.clienteAqui)}</div>
       <div class="panel"><h3>Chaves da Instalação</h3>${renderKeyMiniList(b.instalacaoAqui)}</div>
       <div class="panel"><h3>Chaves Entregues ao Cliente</h3>${renderKeyMiniList(b.entregueCliente)}</div>
-      <div class="panel"><h3>Chaves Entregues ao Instalador</h3>${renderKeyMiniList(b.entregueInstalador)}</div>
+      <div class="panel"><h3>Chaves de Instalação Entregues ao Cliente</h3>${renderKeyMiniList(b.instalacaoEntregueCliente)}</div>
       <div class="panel"><h3>Chaves Requisitadas</h3>${renderKeyMiniList(b.requisitadas)}</div>
       <div class="panel"><h3>Devoluções Recentes</h3>${renderMoveMiniList(b.devolvidasRecentes)}</div>
     </div>`;
@@ -125,9 +125,9 @@ function getAllowedActions(chave) {
     actions.push({ type: 'requisicao', label: 'Requisitar (Cliente)' });
     actions.push({ type: 'entrega_cliente', label: 'Entregar definitivo ao Cliente' });
   }
-  if (chave.disponivelAqui && isInst && chave.statusAtual !== 'entregue_instalador') {
+  if (chave.disponivelAqui && isInst && chave.statusAtual !== 'entregue_cliente') {
     actions.push({ type: 'requisicao', label: 'Requisitar (Instalação)' });
-    actions.push({ type: 'entrega_instalador', label: 'Entregar definitivo ao Instalador' });
+    actions.push({ type: 'entrega_cliente', label: 'Entregar definitivo ao Cliente' });
   }
   return actions;
 }
@@ -151,12 +151,11 @@ function renderChart() {
   const ctx = el('status-chart');
   if (!ctx || !window.Chart) return;
   if (window._chart) window._chart.destroy();
-  window._chart = new Chart(ctx, { type: 'bar', data: { labels: ['Aqui', 'Requisitada', 'Entregue Cliente', 'Entregue Instalador'], datasets: [{ data: [
+  window._chart = new Chart(ctx, { type: 'bar', data: { labels: ['Aqui', 'Requisitada', 'Entregue ao Cliente'], datasets: [{ data: [
     state.chaves.filter((c) => c.disponivelAqui).length,
     state.chaves.filter((c) => c.statusAtual === 'requisitada').length,
-    state.chaves.filter((c) => c.statusAtual === 'entregue_cliente').length,
-    state.chaves.filter((c) => c.statusAtual === 'entregue_instalador').length
-  ], backgroundColor: ['#e0182d', '#ff6c7d', '#6d80ff', '#3ec6ff'] }] }, options: { plugins: { legend: { display: false } } } });
+    state.chaves.filter((c) => c.statusAtual === 'entregue_cliente').length
+  ], backgroundColor: ['#e0182d', '#ff6c7d', '#6d80ff'] }] }, options: { plugins: { legend: { display: false } } } });
 }
 
 async function applyMovement(chaveId, type, payload) {
@@ -165,23 +164,22 @@ async function applyMovement(chaveId, type, payload) {
   if (!snap.exists()) return toast('Chave não encontrada');
   const chave = snap.data();
 
-  if (type === 'entrega_cliente' && chave.tipoDestino !== 'cliente') return toast('Esta chave não pode ser entregue ao cliente.');
-  if (type === 'entrega_instalador' && chave.tipoDestino !== 'instalacao') return toast('Esta chave não pode ser entregue ao instalador.');
 
   const resetStatus = chave.tipoDestino === 'cliente' ? 'separada_cliente' : 'separada_instalacao';
+  const movementType = type === 'entrega_instalador' ? 'entrega_cliente' : type;
+
   const patch = {
     requisicao: { statusAtual: 'requisitada', requisitada: true, disponivelAqui: false, localAtual: payload.nomePessoa },
     devolucao: { statusAtual: resetStatus, requisitada: false, disponivelAqui: true, localAtual: 'empresa', dataUltimaDevolucao: payload.dataHoraISO, quemDevolveu: payload.nomePessoa },
-    entrega_cliente: { statusAtual: 'entregue_cliente', entregue: true, requisitada: false, disponivelAqui: false, localAtual: payload.nomePessoa },
-    entrega_instalador: { statusAtual: 'entregue_instalador', entregue: true, requisitada: false, disponivelAqui: false, localAtual: payload.nomePessoa }
+    entrega_cliente: { statusAtual: 'entregue_cliente', entregue: true, requisitada: false, disponivelAqui: false, localAtual: payload.nomePessoa }
   };
 
-  await updateDoc(chaveRef, patch[type]);
+  await updateDoc(chaveRef, patch[movementType]);
   await addDoc(collection(db, 'movimentacoes'), {
     chaveId,
     obraId: chave.obraId,
     portaId: chave.portaId,
-    tipoMovimentacao: type,
+    tipoMovimentacao: movementType,
     nomePessoa: payload.nomePessoa,
     categoriaPessoa: payload.categoriaPessoa || '',
     observacao: payload.observacao || '',
