@@ -11,6 +11,7 @@ Sistema web para controle de chaves por obra/porta com Firebase Firestore + aute
 - Histórico/timeline de movimentações
 - Busca global e filtros por obra/destino/status
 - Layout moderno com paleta vermelho/preto/branco e animações suaves
+- Tratamento de falhas de autenticação/permissão com alerta visual no topo
 
 ## Estrutura
 - `index.html`: estrutura e telas
@@ -28,3 +29,21 @@ Sistema web para controle de chaves por obra/porta com Firebase Firestore + aute
 
 ## Configuração Firebase
 A configuração já está incluída em `firebase.js` conforme solicitado.
+
+## Solução de erros comuns
+### `auth/configuration-not-found`
+No Firebase Console, habilite o provedor anônimo:
+- Authentication → Sign-in method → Anonymous → Enable.
+
+### `Missing or insufficient permissions`
+Publique regras do Firestore de acordo com o ambiente. Exemplo aberto (temporário):
+```txt
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
+```

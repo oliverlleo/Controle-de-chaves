@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
-import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-analytics.js";
+import { getAnalytics, isSupported as analyticsSupported } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-analytics.js";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-auth.js";
 import { getFirestore, collection, addDoc, doc, getDoc, updateDoc, deleteDoc, serverTimestamp, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-firestore.js";
 
@@ -14,19 +14,43 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-getAnalytics(app);
+
+(async () => {
+  try {
+    if (await analyticsSupported()) getAnalytics(app);
+  } catch (_) {
+    // Ignora analytics em ambientes onde não é suportado.
+  }
+})();
+
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+function getFirebaseErrorCode(err) {
+  return err?.code || err?.customData?._tokenResponse?.error?.message || "unknown";
+}
+
 async function ensureAnonymousAuth() {
-  if (!auth.currentUser) await signInAnonymously(auth);
-  return new Promise((resolve) => onAuthStateChanged(auth, (user) => user && resolve(user)));
+  try {
+    if (!auth.currentUser) await signInAnonymously(auth);
+    const user = await new Promise((resolve) => {
+      const off = onAuthStateChanged(auth, (currentUser) => {
+        if (!currentUser) return;
+        off();
+        resolve(currentUser);
+      });
+    });
+    return { user, ok: true, code: null };
+  } catch (error) {
+    return { user: null, ok: false, code: getFirebaseErrorCode(error), error };
+  }
 }
 
 export {
   db,
   auth,
   ensureAnonymousAuth,
+  getFirebaseErrorCode,
   collection,
   addDoc,
   doc,

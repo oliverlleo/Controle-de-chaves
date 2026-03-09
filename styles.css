@@ -48,3 +48,14 @@ button[type="submit"]:hover { transform: translateY(-1px); background: #ff3047; 
 @keyframes fade { from {opacity:0; transform: translateY(6px);} to {opacity:1; transform:none;} }
 @keyframes slide { from {opacity:0; transform: translateX(10px);} to {opacity:1; transform:none;} }
 @media (max-width: 900px){ .app-shell { grid-template-columns: 1fr; } .sidebar { position: sticky; top:0; z-index: 2; } header { flex-direction: column; align-items: stretch; gap: 8px; } header input { min-width:0; } }
+
+.system-alert {
+  margin-bottom: 10px;
+  width: 100%;
+  background: #3c1118;
+  border: 1px solid #ff4c61;
+  color: #ffd3d9;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+}

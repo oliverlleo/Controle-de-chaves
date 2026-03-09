@@ -1,12 +1,40 @@
 import {
-  db, ensureAnonymousAuth, collection, addDoc, doc, getDoc, updateDoc, deleteDoc,
+  db, ensureAnonymousAuth, getFirebaseErrorCode, collection, addDoc, doc, getDoc, updateDoc, deleteDoc,
   serverTimestamp, query, orderBy, onSnapshot
 } from './firebase.js';
 
-const state = { uid: null, obras: [], portas: [], chaves: [], movimentacoes: [] };
-const STATUSES = ['disponivel_empresa','separada_cliente','separada_instalacao','requisitada','entregue_cliente','entregue_instalador','devolvida','indisponivel'];
+const state = { uid: 'sem-auth', obras: [], portas: [], chaves: [], movimentacoes: [], authOk: false };
+const STATUSES = ['disponivel_empresa', 'separada_cliente', 'separada_instalacao', 'requisitada', 'entregue_cliente', 'entregue_instalador', 'devolvida', 'indisponivel'];
 const el = (id) => document.getElementById(id);
-const toast = (msg) => { const t = el('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 1800); };
+const toast = (msg) => { const t = el('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2200); };
+
+function setAlert(msg) {
+  const box = el('system-alert');
+  if (!box) return;
+  if (!msg) { box.hidden = true; box.textContent = ''; return; }
+  box.hidden = false;
+  box.textContent = msg;
+}
+
+function humanizeError(err) {
+  const code = getFirebaseErrorCode(err);
+  if (`${code}`.includes('auth/configuration-not-found')) return 'Autenticação anônima não habilitada no Firebase Console.';
+  if (`${code}`.includes('auth/operation-not-allowed')) return 'Método de login anônimo está desabilitado no Firebase Auth.';
+  if (`${code}`.includes('permission-denied')) return 'Firestore sem permissão para ler/gravar. Verifique regras/publicação.';
+  return `Erro Firebase: ${code}`;
+}
+
+async function runDb(action, successMessage = '') {
+  try {
+    await action();
+    if (successMessage) toast(successMessage);
+  } catch (error) {
+    const msg = humanizeError(error);
+    toast(msg);
+    setAlert(msg);
+    throw error;
+  }
+}
 
 function bindNavigation() {
   document.querySelectorAll('#main-nav button').forEach((btn) => btn.onclick = () => {
@@ -17,8 +45,11 @@ function bindNavigation() {
   });
 }
 
-function fmtDate(ts) { const d = ts?.toDate ? ts.toDate() : ts?.seconds ? new Date(ts.seconds * 1000) : ts ? new Date(ts) : null; return d ? d.toLocaleString('pt-BR') : '-'; }
-function table(headers, rows) { return `<table class="table"><thead><tr>${headers.map((h) => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table>`; }
+function fmtDate(ts) {
+  const d = ts?.toDate ? ts.toDate() : ts?.seconds ? new Date(ts.seconds * 1000) : ts ? new Date(ts) : null;
+  return d ? d.toLocaleString('pt-BR') : '-';
+}
+function table(headers, rows) { return `<table class="table"><thead><tr>${headers.map((h) => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('') || '<tr><td colspan="99">Sem dados</td></tr>'}</tbody></table>`; }
 
 function renderDashboard() {
   const count = (f) => state.chaves.filter(f).length;
@@ -49,61 +80,87 @@ function renderPortas() {
 }
 
 function renderChaves() {
-  const destino = el('filter-destino').value, status = el('filter-status').value, obraId = el('filter-obra').value, q = el('global-search').value.toLowerCase();
+  const destino = el('filter-destino').value;
+  const status = el('filter-status').value;
+  const obraId = el('filter-obra').value;
+  const q = el('global-search').value.toLowerCase();
   const obraNome = (id) => state.obras.find((o) => o.id === id)?.nome || '-';
   const portaNome = (id) => state.portas.find((p) => p.id === id)?.identificacao || '-';
   const list = state.chaves.filter((c) => (!destino || c.tipoDestino === destino) && (!status || c.statusAtual === status) && (!obraId || c.obraId === obraId))
     .filter((c) => `${obraNome(c.obraId)} ${portaNome(c.portaId)} ${c.statusAtual} ${c.tipoDestino}`.toLowerCase().includes(q));
+
   el('chaves-list').innerHTML = table(['Obra', 'Porta', 'Destino', 'Status', 'Disponível Aqui', 'Ações'], list.map((c) => `<tr><td>${obraNome(c.obraId)}</td><td>${portaNome(c.portaId)}</td><td><span class="badge b-${c.tipoDestino}">${c.tipoDestino}</span></td><td><span class="badge b-status">${c.statusAtual}</span></td><td>${c.disponivelAqui ? 'Sim' : 'Não'}</td><td><button data-del-chave="${c.id}">Excluir</button></td></tr>`));
   el('mov-chave').innerHTML = '<option value="">Selecione a chave</option>' + list.map((c) => `<option value="${c.id}">${obraNome(c.obraId)} / ${portaNome(c.portaId)} / ${c.tipoDestino} / ${c.statusAtual}</option>`).join('');
 }
 
 function renderHistorico() {
-  el('historico-list').innerHTML = `<div class="timeline">${state.movimentacoes.map((m) => `<div class="timeline-item"><b>${m.tipoMovimentacao}</b> • ${m.nomePessoa || 'Sem pessoa'}<br/><small>${m.observacao || 'Sem observação'} • ${fmtDate(m.dataHora)}</small></div>`).join('')}</div>`;
+  el('historico-list').innerHTML = `<div class="timeline">${state.movimentacoes.map((m) => `<div class="timeline-item"><b>${m.tipoMovimentacao}</b> • ${m.nomePessoa || 'Sem pessoa'}<br/><small>${m.observacao || 'Sem observação'} • ${fmtDate(m.dataHora)}</small></div>`).join('') || '<small>Sem histórico</small>'}</div>`;
 }
 
 function renderChart() {
-  const ctx = el('status-chart'); if (!ctx || !window.Chart) return;
+  const ctx = el('status-chart');
+  if (!ctx || !window.Chart) return;
   if (window._chart) window._chart.destroy();
-  window._chart = new Chart(ctx, { type: 'bar', data: { labels: ['Na empresa', 'Requisitada', 'Entregue Cliente', 'Entregue Instalador', 'Devolvida'], datasets: [{ data: [
-    state.chaves.filter((c) => c.disponivelAqui).length,
-    state.chaves.filter((c) => c.requisitada).length,
-    state.chaves.filter((c) => c.statusAtual === 'entregue_cliente').length,
-    state.chaves.filter((c) => c.statusAtual === 'entregue_instalador').length,
-    state.chaves.filter((c) => c.statusAtual === 'devolvida').length
-  ], backgroundColor: ['#e0182d', '#ff6c7d', '#6d80ff', '#3ec6ff', '#15b67b'] }] }, options: { plugins: { legend: { display: false } } } });
+  window._chart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Na empresa', 'Requisitada', 'Entregue Cliente', 'Entregue Instalador', 'Devolvida'],
+      datasets: [{
+        data: [
+          state.chaves.filter((c) => c.disponivelAqui).length,
+          state.chaves.filter((c) => c.requisitada).length,
+          state.chaves.filter((c) => c.statusAtual === 'entregue_cliente').length,
+          state.chaves.filter((c) => c.statusAtual === 'entregue_instalador').length,
+          state.chaves.filter((c) => c.statusAtual === 'devolvida').length
+        ],
+        backgroundColor: ['#e0182d', '#ff6c7d', '#6d80ff', '#3ec6ff', '#15b67b']
+      }]
+    },
+    options: { plugins: { legend: { display: false } } }
+  });
 }
 
 function bindForms() {
-  el('obra-form').onsubmit = async (e) => { e.preventDefault(); await addDoc(collection(db, 'obras'), { ...Object.fromEntries(new FormData(e.target)), dataCadastro: serverTimestamp() }); e.target.reset(); toast('Obra cadastrada com sucesso'); };
+  el('obra-form').onsubmit = async (e) => {
+    e.preventDefault();
+    await runDb(async () => {
+      await addDoc(collection(db, 'obras'), { ...Object.fromEntries(new FormData(e.target)), dataCadastro: serverTimestamp() });
+      e.target.reset();
+    }, 'Obra cadastrada com sucesso');
+  };
 
   el('porta-form').onsubmit = async (e) => {
     e.preventDefault();
     const data = Object.fromEntries(new FormData(e.target));
-    const portaRef = await addDoc(collection(db, 'portas'), { obraId: data.obraId, identificacao: data.identificacao, descricao: data.descricao || '', observacoes: data.observacoes || '', totalChaves: 3, qtdCliente: 2, qtdInstalacao: 1, dataCadastro: serverTimestamp() });
-    const base = { obraId: data.obraId, portaId: portaRef.id, localAtual: 'empresa', disponivelAqui: true, entregue: false, requisitada: false, dataCadastro: serverTimestamp() };
-    await addDoc(collection(db, 'chaves'), { ...base, tipoDestino: 'cliente', statusAtual: 'separada_cliente' });
-    await addDoc(collection(db, 'chaves'), { ...base, tipoDestino: 'cliente', statusAtual: 'separada_cliente' });
-    await addDoc(collection(db, 'chaves'), { ...base, tipoDestino: 'instalacao', statusAtual: 'separada_instalacao' });
-    await addDoc(collection(db, 'movimentacoes'), { obraId: data.obraId, portaId: portaRef.id, tipoMovimentacao: 'cadastro', nomePessoa: 'sistema', categoriaPessoa: 'sistema', observacao: 'Porta cadastrada e 3 chaves geradas', dataHora: serverTimestamp(), usuarioAnonimoId: state.uid });
-    e.target.reset(); toast('Porta e chaves criadas');
+    await runDb(async () => {
+      const portaRef = await addDoc(collection(db, 'portas'), { obraId: data.obraId, identificacao: data.identificacao, descricao: data.descricao || '', observacoes: data.observacoes || '', totalChaves: 3, qtdCliente: 2, qtdInstalacao: 1, dataCadastro: serverTimestamp() });
+      const base = { obraId: data.obraId, portaId: portaRef.id, localAtual: 'empresa', disponivelAqui: true, entregue: false, requisitada: false, dataCadastro: serverTimestamp() };
+      await addDoc(collection(db, 'chaves'), { ...base, tipoDestino: 'cliente', statusAtual: 'separada_cliente' });
+      await addDoc(collection(db, 'chaves'), { ...base, tipoDestino: 'cliente', statusAtual: 'separada_cliente' });
+      await addDoc(collection(db, 'chaves'), { ...base, tipoDestino: 'instalacao', statusAtual: 'separada_instalacao' });
+      await addDoc(collection(db, 'movimentacoes'), { obraId: data.obraId, portaId: portaRef.id, tipoMovimentacao: 'cadastro', nomePessoa: 'sistema', categoriaPessoa: 'sistema', observacao: 'Porta cadastrada e 3 chaves geradas', dataHora: serverTimestamp(), usuarioAnonimoId: state.uid });
+      e.target.reset();
+    }, 'Porta e chaves criadas');
   };
 
   el('mov-form').onsubmit = async (e) => {
     e.preventDefault();
     const data = Object.fromEntries(new FormData(e.target));
-    const chaveRef = doc(db, 'chaves', data.chaveId), snap = await getDoc(chaveRef);
-    if (!snap.exists()) return toast('Chave não encontrada');
-    const chave = snap.data();
-    const patchMap = {
-      requisicao: { statusAtual: 'requisitada', requisitada: true, disponivelAqui: false, localAtual: data.nomePessoa },
-      devolucao: { statusAtual: 'devolvida', requisitada: false, disponivelAqui: true, localAtual: 'empresa' },
-      entrega_cliente: { statusAtual: 'entregue_cliente', entregue: true, requisitada: false, disponivelAqui: false, localAtual: data.nomePessoa },
-      entrega_instalador: { statusAtual: 'entregue_instalador', entregue: true, requisitada: false, disponivelAqui: false, localAtual: data.nomePessoa }
-    };
-    await updateDoc(chaveRef, patchMap[data.tipoMovimentacao]);
-    await addDoc(collection(db, 'movimentacoes'), { chaveId: data.chaveId, obraId: chave.obraId, portaId: chave.portaId, tipoMovimentacao: data.tipoMovimentacao, nomePessoa: data.nomePessoa, categoriaPessoa: data.categoriaPessoa || '', observacao: data.observacao || '', dataHora: serverTimestamp(), usuarioAnonimoId: state.uid });
-    e.target.reset(); toast('Movimentação registrada');
+    await runDb(async () => {
+      const chaveRef = doc(db, 'chaves', data.chaveId);
+      const snap = await getDoc(chaveRef);
+      if (!snap.exists()) { toast('Chave não encontrada'); return; }
+      const chave = snap.data();
+      const patchMap = {
+        requisicao: { statusAtual: 'requisitada', requisitada: true, disponivelAqui: false, localAtual: data.nomePessoa },
+        devolucao: { statusAtual: 'devolvida', requisitada: false, disponivelAqui: true, localAtual: 'empresa' },
+        entrega_cliente: { statusAtual: 'entregue_cliente', entregue: true, requisitada: false, disponivelAqui: false, localAtual: data.nomePessoa },
+        entrega_instalador: { statusAtual: 'entregue_instalador', entregue: true, requisitada: false, disponivelAqui: false, localAtual: data.nomePessoa }
+      };
+      await updateDoc(chaveRef, patchMap[data.tipoMovimentacao]);
+      await addDoc(collection(db, 'movimentacoes'), { chaveId: data.chaveId, obraId: chave.obraId, portaId: chave.portaId, tipoMovimentacao: data.tipoMovimentacao, nomePessoa: data.nomePessoa, categoriaPessoa: data.categoriaPessoa || '', observacao: data.observacao || '', dataHora: serverTimestamp(), usuarioAnonimoId: state.uid });
+      e.target.reset();
+    }, 'Movimentação registrada');
   };
 
   el('filter-destino').onchange = renderChaves;
@@ -116,35 +173,70 @@ function bindForms() {
 function bindActions() {
   document.body.addEventListener('click', async (e) => {
     const id = e.target.dataset.delObra;
-    if (id && confirm('Excluir obra?')) { await deleteDoc(doc(db, 'obras', id)); toast('Obra excluída'); }
+    if (id && confirm('Excluir obra?')) await runDb(() => deleteDoc(doc(db, 'obras', id)), 'Obra excluída');
+
     const pid = e.target.dataset.delPorta;
-    if (pid && confirm('Excluir porta?')) { await deleteDoc(doc(db, 'portas', pid)); toast('Porta excluída'); }
+    if (pid && confirm('Excluir porta?')) await runDb(() => deleteDoc(doc(db, 'portas', pid)), 'Porta excluída');
+
     const kid = e.target.dataset.delChave;
-    if (kid && confirm('Excluir chave?')) { await deleteDoc(doc(db, 'chaves', kid)); toast('Chave excluída'); }
+    if (kid && confirm('Excluir chave?')) await runDb(() => deleteDoc(doc(db, 'chaves', kid)), 'Chave excluída');
 
     const eid = e.target.dataset.editObra;
     if (eid) {
       const nome = prompt('Novo nome da obra:');
-      if (nome) { await updateDoc(doc(db, 'obras', eid), { nome }); toast('Obra atualizada'); }
+      if (nome) await runDb(() => updateDoc(doc(db, 'obras', eid), { nome }), 'Obra atualizada');
     }
+
     const ep = e.target.dataset.editPorta;
     if (ep) {
       const identificacao = prompt('Nova identificação da porta:');
-      if (identificacao) { await updateDoc(doc(db, 'portas', ep), { identificacao }); toast('Porta atualizada'); }
+      if (identificacao) await runDb(() => updateDoc(doc(db, 'portas', ep), { identificacao }), 'Porta atualizada');
     }
   });
 }
 
+function bindCollection(name, setter) {
+  onSnapshot(
+    query(collection(db, name), orderBy(name === 'movimentacoes' ? 'dataHora' : 'dataCadastro', 'desc')),
+    (snap) => {
+      setter(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      renderObras();
+      renderPortas();
+      renderChaves();
+      renderDashboard();
+      renderHistorico();
+    },
+    (error) => {
+      const msg = humanizeError(error);
+      setAlert(msg);
+      toast(msg);
+    }
+  );
+}
+
 function subscribe() {
-  onSnapshot(query(collection(db, 'obras'), orderBy('dataCadastro', 'desc')), (s) => { state.obras = s.docs.map((d) => ({ id: d.id, ...d.data() })); renderObras(); renderPortas(); renderChaves(); renderDashboard(); });
-  onSnapshot(query(collection(db, 'portas'), orderBy('dataCadastro', 'desc')), (s) => { state.portas = s.docs.map((d) => ({ id: d.id, ...d.data() })); renderPortas(); renderChaves(); renderDashboard(); });
-  onSnapshot(query(collection(db, 'chaves'), orderBy('dataCadastro', 'desc')), (s) => { state.chaves = s.docs.map((d) => ({ id: d.id, ...d.data() })); renderChaves(); renderDashboard(); });
-  onSnapshot(query(collection(db, 'movimentacoes'), orderBy('dataHora', 'desc')), (s) => { state.movimentacoes = s.docs.map((d) => ({ id: d.id, ...d.data() })); renderDashboard(); renderHistorico(); });
+  bindCollection('obras', (rows) => { state.obras = rows; });
+  bindCollection('portas', (rows) => { state.portas = rows; });
+  bindCollection('chaves', (rows) => { state.chaves = rows; });
+  bindCollection('movimentacoes', (rows) => { state.movimentacoes = rows; });
 }
 
 (async function init() {
-  bindNavigation(); bindForms(); bindActions();
-  const user = await ensureAnonymousAuth();
-  state.uid = user.uid; el('uid-display').textContent = user.uid;
+  bindNavigation();
+  bindForms();
+  bindActions();
+
+  const authResult = await ensureAnonymousAuth();
+  if (authResult.ok && authResult.user) {
+    state.authOk = true;
+    state.uid = authResult.user.uid;
+    el('uid-display').textContent = authResult.user.uid;
+  } else {
+    state.authOk = false;
+    state.uid = 'sem-auth-configurada';
+    el('uid-display').textContent = `${state.uid} (${authResult.code || 'erro'})`;
+    setAlert('Auth anônima não configurada no Firebase. O sistema continua, mas o UID será local até habilitar: Firebase Console > Authentication > Sign-in method > Anonymous.');
+  }
+
   subscribe();
 })();
