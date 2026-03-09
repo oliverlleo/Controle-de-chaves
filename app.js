@@ -3,7 +3,7 @@ import {
   serverTimestamp, query, orderBy, onSnapshot
 } from './firebase.js';
 
-const state = { uid: 'sem-auth', obras: [], portas: [], chaves: [], movimentacoes: [], authOk: false, pendingMove: null, dashboardMode: 'resumida' };
+const state = { uid: 'sem-auth', obras: [], portas: [], chaves: [], movimentacoes: [], authOk: false, pendingMove: null, dashboardMode: 'resumida', dashboardBuckets: {} };
 const STATUSES = ['separada_cliente', 'separada_instalacao', 'requisitada', 'entregue_cliente', 'indisponivel'];
 const el = (id) => document.getElementById(id);
 const toast = (msg) => { const t = el('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2200); };
@@ -63,25 +63,12 @@ function keyBuckets() {
 }
 
 
-function clientGroups() {
-  const map = new Map();
-  state.chaves.forEach((chave) => {
-    const obra = state.obras.find((o) => o.id === chave.obraId);
-    const cliente = (obra?.cliente || 'Sem cliente').trim() || 'Sem cliente';
-    if (!map.has(cliente)) map.set(cliente, []);
-    map.get(cliente).push(chave);
-  });
-  return [...map.entries()].map(([cliente, chaves]) => ({ cliente, chaves, total: chaves.length }))
-    .sort((a, b) => b.total - a.total || a.cliente.localeCompare(b.cliente, 'pt-BR'));
-}
-
-function openClientModal(cliente) {
-  const group = clientGroups().find((g) => g.cliente === cliente);
-  if (!group) return toast('Cliente não encontrado');
-  el('client-modal-title').textContent = `Chaves do cliente: ${cliente}`;
+function openClientModal(cliente, categoria, chaves) {
+  if (!chaves?.length) return toast('Nenhuma chave encontrada para este cliente nesta categoria');
+  el('client-modal-title').textContent = `${categoria} • ${cliente}`;
   el('client-modal-body').innerHTML = table(
     ['Obra', 'Porta', 'Destino', 'Status', 'Local'],
-    group.chaves.map((c) => `<tr><td>${obraNome(c.obraId)}</td><td>${portaNome(c.portaId)}</td><td>${c.tipoDestino}</td><td>${c.statusAtual}</td><td>${c.localAtual || '-'}</td></tr>`)
+    chaves.map((c) => `<tr><td>${obraNome(c.obraId)}</td><td>${portaNome(c.portaId)}</td><td>${c.tipoDestino}</td><td>${c.statusAtual}</td><td>${c.localAtual || '-'}</td></tr>`)
   );
   el('client-keys-modal').hidden = false;
 }
@@ -92,6 +79,7 @@ function closeClientModal() {
 
 function renderDashboard() {
   const b = keyBuckets();
+  state.dashboardBuckets = b;
   const modeButton = state.dashboardMode === 'resumida'
     ? '<button class="dash-toggle" data-dashboard-mode="completa">Ver visualização completa</button>'
     : '<button class="dash-toggle" data-dashboard-mode="resumida">Ver visualização resumida</button>';
@@ -111,11 +99,11 @@ function renderDashboard() {
   if (state.dashboardMode === 'resumida') {
     const resumoPorCategoria = `
       <div class="dashboard-grid">
-        <div class="panel"><h3>Chaves do Cliente</h3>${renderClientSummaryByCategory(b.clienteAqui)}</div>
-        <div class="panel"><h3>Chaves da Instalação</h3>${renderClientSummaryByCategory(b.instalacaoAqui)}</div>
-        <div class="panel"><h3>Chaves Entregues ao Cliente</h3>${renderClientSummaryByCategory(b.entregueCliente)}</div>
-        <div class="panel"><h3>Chaves de Instalação Entregues ao Cliente</h3>${renderClientSummaryByCategory(b.instalacaoEntregueCliente)}</div>
-        <div class="panel"><h3>Chaves Requisitadas</h3>${renderClientSummaryByCategory(b.requisitadas)}</div>
+        <div class="panel"><h3>Chaves do Cliente</h3>${renderClientSummaryByCategory(b.clienteAqui, 'clienteAqui', 'Chaves do Cliente')}</div>
+        <div class="panel"><h3>Chaves da Instalação</h3>${renderClientSummaryByCategory(b.instalacaoAqui, 'instalacaoAqui', 'Chaves da Instalação')}</div>
+        <div class="panel"><h3>Chaves Entregues ao Cliente</h3>${renderClientSummaryByCategory(b.entregueCliente, 'entregueCliente', 'Chaves Entregues ao Cliente')}</div>
+        <div class="panel"><h3>Chaves de Instalação Entregues ao Cliente</h3>${renderClientSummaryByCategory(b.instalacaoEntregueCliente, 'instalacaoEntregueCliente', 'Chaves de Instalação Entregues ao Cliente')}</div>
+        <div class="panel"><h3>Chaves Requisitadas</h3>${renderClientSummaryByCategory(b.requisitadas, 'requisitadas', 'Chaves Requisitadas')}</div>
         <div class="panel"><h3>Devoluções Recentes</h3>${renderMoveMiniList(b.devolvidasRecentes)}</div>
       </div>`;
     el('dashboard').innerHTML = `${header}${metrics}${resumoPorCategoria}`;
@@ -139,19 +127,20 @@ function renderDashboard() {
   renderChart();
 }
 
-function renderClientSummaryByCategory(list) {
+function renderClientSummaryByCategory(list, bucketName, categoriaTitulo) {
   if (!list.length) return '<small>Sem chaves nesta categoria.</small>';
   const summary = new Map();
   list.forEach((c) => {
     const cliente = (state.obras.find((o) => o.id === c.obraId)?.cliente || 'Sem cliente').trim() || 'Sem cliente';
-    summary.set(cliente, (summary.get(cliente) || 0) + 1);
+    if (!summary.has(cliente)) summary.set(cliente, []);
+    summary.get(cliente).push(c);
   });
 
   const byClient = [...summary.entries()]
-    .map(([cliente, total]) => ({ cliente, total }))
+    .map(([cliente, chaves]) => ({ cliente, chaves, total: chaves.length }))
     .sort((a, b) => b.total - a.total || a.cliente.localeCompare(b.cliente, 'pt-BR'));
 
-  return `<div class="mini-list">${byClient.map((item) => `<div class="mini-item"><strong>${item.cliente}</strong> • ${item.total} chave(s)</div>`).join('')}</div>`;
+  return `<div class="mini-list">${byClient.map((item, idx) => `<button type="button" class="mini-item mini-item-action" data-client-summary="${item.cliente}" data-client-bucket="${bucketName}" data-client-category="${categoriaTitulo}" style="animation-delay:${idx * 40}ms"><strong>${item.cliente}</strong> • ${item.total} chave(s)</button>`).join('')}</div>`;
 }
 
 function renderKeyMiniList(list) {
@@ -373,9 +362,14 @@ function bindActions() {
       renderDashboard();
     }
 
-    const clientCard = e.target.closest('[data-client-card]');
-    if (clientCard) {
-      openClientModal(clientCard.dataset.clientCard);
+    const clientSummary = e.target.closest('[data-client-summary]');
+    if (clientSummary) {
+      const cliente = clientSummary.dataset.clientSummary;
+      const bucketName = clientSummary.dataset.clientBucket;
+      const categoria = clientSummary.dataset.clientCategory;
+      const list = state.dashboardBuckets[bucketName] || [];
+      const chavesCliente = list.filter((c) => ((state.obras.find((o) => o.id === c.obraId)?.cliente || 'Sem cliente').trim() || 'Sem cliente') === cliente);
+      openClientModal(cliente, categoria, chavesCliente);
     }
     const moveKey = e.target.dataset.moveKey;
     const moveType = e.target.dataset.moveType;

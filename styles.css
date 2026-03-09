@@ -47,6 +47,7 @@ button[type="submit"]:hover { transform: translateY(-1px); background: #ff3047; 
 .filters { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); }
 @keyframes fade { from {opacity:0; transform: translateY(6px);} to {opacity:1; transform:none;} }
 @keyframes slide { from {opacity:0; transform: translateX(10px);} to {opacity:1; transform:none;} }
+@keyframes rise { from {opacity:0; transform: translateY(6px);} to {opacity:1; transform:none;} }
 @media (max-width: 900px){ .app-shell { grid-template-columns: 1fr; } .sidebar { position: sticky; top:0; z-index: 2; } header { flex-direction: column; align-items: stretch; gap: 8px; } header input { min-width:0; } }
 
 .system-alert {
@@ -63,6 +64,9 @@ button[type="submit"]:hover { transform: translateY(-1px); background: #ff3047; 
 .dashboard-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(280px,1fr)); gap: 10px; }
 .mini-list { display:grid; gap: 6px; }
 .mini-item { padding: 8px; border:1px solid #34343d; border-radius: 8px; background:#151518; }
+.mini-item-action { width: 100%; text-align: left; color: var(--text); cursor: pointer; transition: transform .2s, border-color .2s, background .2s; animation: rise .25s ease both; }
+.mini-item-action:hover { transform: translateY(-2px); border-color: var(--red-soft); background: #1a1a20; }
+.mini-item-action:focus-visible { outline: 2px solid var(--red-soft); outline-offset: 2px; }
 .key-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(280px,1fr)); gap: 10px; margin-top: 10px; }
 .key-card { background:#19191d; border:1px solid #363640; border-radius: 12px; padding: 12px; }
 .key-card h4 { margin: 0 0 8px; }
@@ -79,7 +83,4 @@ button[type="submit"]:hover { transform: translateY(-1px); background: #ff3047; 
 
 .dashboard-head { display:flex; align-items:center; justify-content:space-between; }
 .dash-toggle { width:auto; background:#2b2b32; border:1px solid #4a4a55; cursor:pointer; }
-.client-cards { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
-.client-card { cursor:pointer; }
-.client-card span { color: var(--muted); font-size: .8rem; }
 .modal-lg { width: min(980px, 95vw); }
