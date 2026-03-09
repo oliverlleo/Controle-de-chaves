@@ -4,6 +4,8 @@ Sistema web para controle de chaves por obra/porta com Firebase Firestore + aute
 
 ## Recursos
 - Dashboard com indicadores e gráfico
+- Dashboard com alternância resumida/completa (padrão resumida)
+- Resumo por cliente: card com total de chaves e modal de detalhamento
 - CRUD de obras
 - CRUD de portas com geração automática de 3 chaves (2 cliente e 1 instalação)
 - Controle de status das chaves

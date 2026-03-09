@@ -3,7 +3,7 @@ import {
   serverTimestamp, query, orderBy, onSnapshot
 } from './firebase.js';
 
-const state = { uid: 'sem-auth', obras: [], portas: [], chaves: [], movimentacoes: [], authOk: false, pendingMove: null };
+const state = { uid: 'sem-auth', obras: [], portas: [], chaves: [], movimentacoes: [], authOk: false, pendingMove: null, dashboardMode: 'resumida' };
 const STATUSES = ['separada_cliente', 'separada_instalacao', 'requisitada', 'entregue_cliente', 'indisponivel'];
 const el = (id) => document.getElementById(id);
 const toast = (msg) => { const t = el('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2200); };
@@ -62,9 +62,54 @@ function keyBuckets() {
   };
 }
 
+
+function clientGroups() {
+  const map = new Map();
+  state.chaves.forEach((chave) => {
+    const obra = state.obras.find((o) => o.id === chave.obraId);
+    const cliente = (obra?.cliente || 'Sem cliente').trim() || 'Sem cliente';
+    if (!map.has(cliente)) map.set(cliente, []);
+    map.get(cliente).push(chave);
+  });
+  return [...map.entries()].map(([cliente, chaves]) => ({ cliente, chaves, total: chaves.length }))
+    .sort((a, b) => b.total - a.total || a.cliente.localeCompare(b.cliente, 'pt-BR'));
+}
+
+function openClientModal(cliente) {
+  const group = clientGroups().find((g) => g.cliente === cliente);
+  if (!group) return toast('Cliente não encontrado');
+  el('client-modal-title').textContent = `Chaves do cliente: ${cliente}`;
+  el('client-modal-body').innerHTML = table(
+    ['Obra', 'Porta', 'Destino', 'Status', 'Local'],
+    group.chaves.map((c) => `<tr><td>${obraNome(c.obraId)}</td><td>${portaNome(c.portaId)}</td><td>${c.tipoDestino}</td><td>${c.statusAtual}</td><td>${c.localAtual || '-'}</td></tr>`)
+  );
+  el('client-keys-modal').hidden = false;
+}
+
+function closeClientModal() {
+  el('client-keys-modal').hidden = true;
+}
+
 function renderDashboard() {
   const b = keyBuckets();
+  const groups = clientGroups();
+  const modeButton = state.dashboardMode === 'resumida'
+    ? '<button class="dash-toggle" data-dashboard-mode="completa">Ver visualização completa</button>'
+    : '<button class="dash-toggle" data-dashboard-mode="resumida">Ver visualização resumida</button>';
+
+  const header = `<div class="panel dashboard-head"><h3>Dashboard (${state.dashboardMode})</h3>${modeButton}</div>`;
+
+  if (state.dashboardMode === 'resumida') {
+    el('dashboard').innerHTML = `
+      ${header}
+      <div class="cards client-cards">${groups.map((g) => `<article class="card client-card" data-client-card="${g.cliente}"><small>${g.cliente}</small><strong>${g.total}</strong><span>Total de chaves</span></article>`).join('') || '<small>Sem clientes/chaves cadastrados.</small>'}</div>
+    `;
+    renderChart();
+    return;
+  }
+
   el('dashboard').innerHTML = `
+    ${header}
     <div class="cards">
       <article class="card"><small>Cliente disponíveis aqui</small><strong>${b.clienteAqui.length}</strong></article>
       <article class="card"><small>Instalação disponíveis aqui</small><strong>${b.instalacaoAqui.length}</strong></article>
@@ -233,6 +278,7 @@ function bindForms() {
   };
 
   el('cancel-movement').onclick = closeModal;
+  el('close-client-modal').onclick = closeClientModal;
 }
 
 function openModal(keyId, type) {
@@ -295,6 +341,17 @@ function bindActions() {
       if (identificacao) await runDb(() => updateDoc(doc(db, 'portas', ep), { identificacao }), 'Porta atualizada');
     }
 
+
+    const mode = e.target.dataset.dashboardMode;
+    if (mode) {
+      state.dashboardMode = mode;
+      renderDashboard();
+    }
+
+    const clientCard = e.target.closest('[data-client-card]');
+    if (clientCard) {
+      openClientModal(clientCard.dataset.clientCard);
+    }
     const moveKey = e.target.dataset.moveKey;
     const moveType = e.target.dataset.moveType;
     if (moveKey && moveType) openModal(moveKey, moveType);
