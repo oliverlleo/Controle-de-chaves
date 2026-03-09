@@ -47,6 +47,17 @@ const isoLocal = () => {
   return d.toISOString().slice(0, 16);
 };
 
+
+const STATUS_META = {
+  separada_cliente: { label: 'Separada (Cliente)', cls: 'st-separada-cliente' },
+  separada_instalacao: { label: 'Separada (Instalação)', cls: 'st-separada-instalacao' },
+  requisitada: { label: 'Requisitada', cls: 'st-requisitada' },
+  entregue_cliente: { label: 'Entregue ao Cliente', cls: 'st-entregue-cliente' },
+  indisponivel: { label: 'Indisponível', cls: 'st-indisponivel' }
+};
+const statusLabel = (status) => STATUS_META[status]?.label || status;
+const statusClass = (status) => STATUS_META[status]?.cls || 'st-default';
+
 function table(headers, rows) {
   return `<table class="table"><thead><tr>${headers.map((h) => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('') || '<tr><td colspan="99">Sem dados</td></tr>'}</tbody></table>`;
 }
@@ -68,13 +79,41 @@ function openClientModal(cliente, categoria, chaves) {
   el('client-modal-title').textContent = `${categoria} • ${cliente}`;
   el('client-modal-body').innerHTML = table(
     ['Obra', 'Porta', 'Destino', 'Status', 'Local'],
-    chaves.map((c) => `<tr><td>${obraNome(c.obraId)}</td><td>${portaNome(c.portaId)}</td><td>${c.tipoDestino}</td><td>${c.statusAtual}</td><td>${c.localAtual || '-'}</td></tr>`)
+    chaves.map((c) => `<tr><td>${obraNome(c.obraId)}</td><td>${portaNome(c.portaId)}</td><td>${c.tipoDestino}</td><td><span class="badge b-status ${statusClass(c.statusAtual)}">${statusLabel(c.statusAtual)}</span></td><td>${c.localAtual || '-'}</td></tr>`)
   );
   el('client-keys-modal').hidden = false;
+  setBodyModalLock();
 }
 
 function closeClientModal() {
   el('client-keys-modal').hidden = true;
+  setBodyModalLock();
+}
+
+
+function setBodyModalLock() {
+  const anyOpen = [...document.querySelectorAll('.modal')].some((m) => !m.hidden);
+  document.body.classList.toggle('modal-open', anyOpen);
+}
+
+function setupModalBackdropClose() {
+  document.querySelectorAll('.modal').forEach((modal) => {
+    modal.addEventListener('click', (e) => {
+      if (e.target !== modal) return;
+      if (modal.id === 'movement-modal') closeModal();
+      if (modal.id === 'client-keys-modal') closeClientModal();
+      if (modal.id === 'batch-movement-modal') closeBatchModal();
+      if (modal.id === 'key-history-modal') closeKeyHistory();
+    });
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    closeModal();
+    closeClientModal();
+    closeBatchModal();
+    closeKeyHistory();
+  });
 }
 
 function renderDashboard() {
@@ -121,7 +160,7 @@ function renderDashboard() {
       <div class="panel"><h3>Devoluções Recentes</h3>${renderMoveMiniList(b.devolvidasRecentes)}</div>
     </div>`;
 
-  const completaExtra = `<div class="panel"><h3>Lista completa de chaves</h3>${table(['Obra','Porta','Cliente','Destino','Status','Local'], state.chaves.map((c)=>`<tr><td>${obraNome(c.obraId)}</td><td>${portaNome(c.portaId)}</td><td>${state.obras.find((o)=>o.id===c.obraId)?.cliente || '-'}</td><td>${c.tipoDestino}</td><td>${c.statusAtual}</td><td>${c.localAtual || '-'}</td></tr>`))}</div>`;
+  const completaExtra = `<div class="panel"><h3>Lista completa de chaves</h3>${table(['Obra','Porta','Cliente','Destino','Status','Local'], state.chaves.map((c)=>`<tr><td>${obraNome(c.obraId)}</td><td>${portaNome(c.portaId)}</td><td>${state.obras.find((o)=>o.id===c.obraId)?.cliente || '-'}</td><td>${c.tipoDestino}</td><td><span class="badge b-status ${statusClass(c.statusAtual)}">${statusLabel(c.statusAtual)}</span></td><td>${c.localAtual || '-'}</td></tr>`))}</div>`;
 
   el('dashboard').innerHTML = `${header}${metrics}${kaban}${completaExtra}`;
   renderChart();
@@ -178,7 +217,7 @@ function renderChaves() {
   const list = state.chaves.filter((c) => (!destino || c.tipoDestino === destino) && (!status || c.statusAtual === status) && (!obraId || c.obraId === obraId))
     .filter((c) => `${obraNome(c.obraId)} ${portaNome(c.portaId)} ${c.statusAtual} ${c.tipoDestino}`.toLowerCase().includes(q));
 
-  el('chaves-list').innerHTML = table(['Obra', 'Porta', 'Destino', 'Status', 'Aqui?', 'Local atual', 'Ações'], list.map((c) => `<tr><td>${obraNome(c.obraId)}</td><td>${portaNome(c.portaId)}</td><td><span class="badge b-${c.tipoDestino}">${c.tipoDestino}</span></td><td><span class="badge b-status">${c.statusAtual}</span></td><td>${c.disponivelAqui ? 'Sim' : 'Não'}</td><td>${c.localAtual || '-'}</td><td><button data-del-chave="${c.id}">Excluir</button></td></tr>`));
+  el('chaves-list').innerHTML = table(['Obra', 'Porta', 'Destino', 'Status', 'Aqui?', 'Local atual', 'Ações'], list.map((c) => `<tr><td>${obraNome(c.obraId)}</td><td>${portaNome(c.portaId)}</td><td><span class="badge b-${c.tipoDestino}">${c.tipoDestino}</span></td><td><span class="badge b-status ${statusClass(c.statusAtual)}">${statusLabel(c.statusAtual)}</span></td><td>${c.disponivelAqui ? 'Sim' : 'Não'}</td><td>${c.localAtual || '-'}</td><td><button data-del-chave="${c.id}">Excluir</button></td></tr>`));
 }
 
 function getAllowedActions(chave) {
@@ -206,7 +245,7 @@ function renderMovimentacoes() {
     .map((c) => {
       const actions = getAllowedActions(c).map((a) => `<button data-move-key="${c.id}" data-move-type="${a.type}">${a.label}</button>`).join('');
       const historyBtn = `<button class="ghost-btn" data-key-history="${c.id}">Histórico</button>`;
-      return `<article class="key-card"><h4>${obraNome(c.obraId)} • ${portaNome(c.portaId)}</h4><p><span class="badge b-${c.tipoDestino}">${c.tipoDestino}</span> <span class="badge b-status">${c.statusAtual}</span></p><small>Local: ${c.localAtual || 'empresa'}</small><div class="key-actions">${actions || ''}${historyBtn}</div></article>`;
+      return `<article class="key-card"><h4>${obraNome(c.obraId)} • ${portaNome(c.portaId)}</h4><p><span class="badge b-${c.tipoDestino}">${c.tipoDestino}</span> <span class="badge b-status ${statusClass(c.statusAtual)}">${statusLabel(c.statusAtual)}</span></p><small>Local: ${c.localAtual || 'empresa'}</small><div class="key-actions">${actions || ''}${historyBtn}</div></article>`;
     }).join('');
   el('mov-cards').innerHTML = cards || '<small>Nenhuma chave encontrada.</small>';
 }
@@ -243,7 +282,7 @@ function renderBatchKeys() {
   const col = (tipo, title, css) => {
     const rows = byType(tipo).map((c) => {
       const checked = state.batchSelection[tipo].has(c.id) ? 'checked' : '';
-      return `<label class="batch-item ${css}"><input type="checkbox" data-batch-key="${c.id}" data-batch-type="${tipo}" ${checked} /> <span>${portaNome(c.portaId)} • ${c.statusAtual}</span></label>`;
+      return `<label class="batch-item ${css}"><input type="checkbox" data-batch-key="${c.id}" data-batch-type="${tipo}" ${checked} /> <span>${portaNome(c.portaId)} • ${statusLabel(c.statusAtual)}</span></label>`;
     }).join('') || '<small>Sem chaves</small>';
     return `<div class="batch-col ${css}"><h4>${title}</h4>${rows}</div>`;
   };
@@ -277,10 +316,12 @@ function openBatchModal() {
   el('batch-datetime').value = isoLocal();
   renderBatchMovementModal();
   el('batch-movement-modal').hidden = false;
+  setBodyModalLock();
 }
 
 function closeBatchModal() {
   el('batch-movement-modal').hidden = true;
+  setBodyModalLock();
 }
 
 async function applyBatchMovement(type, ids) {
@@ -316,10 +357,12 @@ function openKeyHistory(keyId) {
 
   el('key-history-body').innerHTML = `<div class="timeline">${rows}</div>`;
   el('key-history-modal').hidden = false;
+  setBodyModalLock();
 }
 
 function closeKeyHistory() {
   el('key-history-modal').hidden = true;
+  setBodyModalLock();
 }
 
 function renderHistorico() {
@@ -582,11 +625,13 @@ function openModal(keyId, type) {
   el('mv-note').value = '';
   el('mv-datetime').value = isoLocal();
   el('movement-modal').hidden = false;
+  setBodyModalLock();
 }
 
 function closeModal() {
   state.pendingMove = null;
   el('movement-modal').hidden = true;
+  setBodyModalLock();
 }
 
 function bindActions() {
@@ -696,6 +741,7 @@ function bindNavigation() {
   bindNavigation();
   bindForms();
   bindActions();
+  setupModalBackdropClose();
 
   const authResult = await ensureAnonymousAuth();
   if (authResult.ok && authResult.user) {

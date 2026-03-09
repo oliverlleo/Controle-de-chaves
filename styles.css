@@ -64,6 +64,15 @@ button[type="submit"]:hover { transform: translateY(-1px); background: #ff3047; 
 .b-cliente { background: #4f1220; color: #ff8d9d; }
 .b-instalacao { background: #1b1b3d; color: #9db2ff; }
 .b-status { background: #2a2a2f; color: #ddd; }
+
+body.modal-open { overflow: hidden; }
+
+.b-status.st-separada-cliente { background: #5b1422; color: #ffb8c4; border: 1px solid #8f2a3f; }
+.b-status.st-separada-instalacao { background: #172758; color: #bfd0ff; border: 1px solid #3753aa; }
+.b-status.st-requisitada { background: #5a4011; color: #ffe1a3; border: 1px solid #a6761d; }
+.b-status.st-entregue-cliente { background: #15422c; color: #b6ffd8; border: 1px solid #24714a; }
+.b-status.st-indisponivel { background: #4a1f1f; color: #ffc4c4; border: 1px solid #9a4343; }
+
 .timeline { display: grid; gap: 8px; }
 .timeline-item { border-left: 2px solid var(--red); padding: 8px 0 8px 12px; background: #17171a; border-radius: 8px; animation: slide .3s ease; }
 #toast { position: fixed; right: 16px; bottom: 16px; background: var(--ok); color: #00150e; padding: 10px 14px; border-radius: 10px; opacity: 0; pointer-events: none; transition: .25s; font-weight: 700; }
@@ -100,8 +109,8 @@ button[type="submit"]:hover { transform: translateY(-1px); background: #ff3047; 
 .key-actions { display:grid; gap: 8px; margin-top: 10px; }
 .key-actions button { background:#2a2a31; border:1px solid #40404b; cursor:pointer; }
 .key-actions button:hover { border-color:#ff4f66; }
-.modal { position: fixed; inset: 0; background: rgba(0,0,0,.55); display:grid; place-items: center; z-index: 10; }
-.modal-card { width: min(680px, 92vw); background:#17171b; border:1px solid #393944; border-radius: 16px; padding: 16px; }
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,.55); display:grid; place-items: center; z-index: 10; padding: 16px; overflow-y: auto; }
+.modal-card { width: min(680px, 92vw); max-height: calc(100vh - 32px); overflow-y: auto; background:#17171b; border:1px solid #393944; border-radius: 16px; padding: 16px; }
 .modal-actions { display:flex; gap: 10px; grid-column: 1 / -1; }
 #cancel-movement { background:#2b2b32; }
 
