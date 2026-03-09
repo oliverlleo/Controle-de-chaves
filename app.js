@@ -332,9 +332,12 @@ function bindForms() {
       });
 
       const obraSelecionada = form.obraId.value;
-      form.reset();
+      form.querySelector('[name="identificacao"]').value = '';
+      form.querySelector('[name="descricao"]').value = '';
+      form.querySelector('[name="observacoes"]').value = '';
       form.obraId.value = obraSelecionada;
       setPortaPreset('padrao');
+      form.querySelector('[name="identificacao"]').focus();
     }, 'Porta e chaves criadas');
   };
 

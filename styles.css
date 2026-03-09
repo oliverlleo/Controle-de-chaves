@@ -35,6 +35,23 @@ button[type="submit"]:hover { transform: translateY(-1px); background: #ff3047; 
 .preset-row { grid-column: 1 / -1; display:flex; flex-wrap: wrap; gap: 8px; }
 .preset-btn { width: auto; background:#22222a; border:1px solid #3f3f49; cursor:pointer; transition: transform .2s, border-color .2s, background .2s; }
 .preset-btn:hover { transform: translateY(-2px); border-color: var(--red-soft); background:#2b1b20; }
+
+#porta-form { align-items: end; grid-template-columns: minmax(200px, 1.2fr) minmax(180px, 1fr) minmax(180px, 1fr) minmax(220px, 1.1fr) minmax(160px, .8fr); }
+#porta-form input,
+#porta-form select,
+#porta-form textarea,
+#porta-form button { min-height: 44px; }
+#porta-form textarea[name="observacoes"] { min-height: 44px; max-height: 120px; }
+#save-porta-btn { white-space: nowrap; }
+#porta-form .key-config { grid-column: 4 / 5; grid-template-columns: 1fr; align-self: stretch; }
+#porta-form .preset-row { flex-direction: column; }
+#porta-form .preset-btn { width: 100%; }
+@media (max-width: 1200px) {
+  #porta-form { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); align-items: start; }
+  #porta-form .key-config { grid-column: 1 / -1; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+  #porta-form .preset-row { flex-direction: row; }
+  #porta-form .preset-btn { width: auto; }
+}
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
 .card { background: var(--panel-soft); border-radius: 14px; border: 1px solid #383840; padding: 14px; transition: .25s; }
 .card:hover { transform: translateY(-3px); border-color: var(--red-soft); }
