@@ -161,7 +161,7 @@ function renderObras() {
 }
 
 function renderPortas() {
-  el('portas-list').innerHTML = table(['Obra', 'Porta', 'Descrição', 'Padrão', 'Ações'], state.portas.map((p) => `<tr><td>${obraNome(p.obraId)}</td><td>${p.identificacao}</td><td>${p.descricao || '-'}</td><td>2 cliente / 1 instalação</td><td><button data-edit-porta="${p.id}">Editar</button> <button data-del-porta="${p.id}">Excluir</button></td></tr>`));
+  el('portas-list').innerHTML = table(['Obra', 'Porta', 'Descrição', 'Chaves', 'Ações'], state.portas.map((p) => `<tr><td>${obraNome(p.obraId)}</td><td>${p.identificacao}</td><td>${p.descricao || '-'}</td><td>${p.qtdCliente || 0} cliente / ${p.qtdInstalacao || 0} instalação (${p.totalChaves || ((p.qtdCliente || 0) + (p.qtdInstalacao || 0))} total)</td><td><button data-edit-porta="${p.id}">Editar</button> <button data-del-porta="${p.id}">Excluir</button></td></tr>`));
 }
 
 function renderChaves() {
@@ -247,6 +247,44 @@ async function applyMovement(chaveId, type, payload) {
   });
 }
 
+
+function sanitizeKeyCount(value) {
+  const num = Number.parseInt(value, 10);
+  return Number.isFinite(num) ? Math.max(0, Math.min(20, num)) : 0;
+}
+
+function refreshPortaKeyConfig() {
+  const qtdClienteInput = el('qtd-cliente');
+  const qtdInstalacaoInput = el('qtd-instalacao');
+  const totalInput = el('qtd-total');
+  const submitBtn = el('save-porta-btn');
+  if (!qtdClienteInput || !qtdInstalacaoInput || !totalInput || !submitBtn) return;
+  const qtdCliente = sanitizeKeyCount(qtdClienteInput.value);
+  const qtdInstalacao = sanitizeKeyCount(qtdInstalacaoInput.value);
+  qtdClienteInput.value = qtdCliente;
+  qtdInstalacaoInput.value = qtdInstalacao;
+  const total = qtdCliente + qtdInstalacao;
+  totalInput.value = total;
+  submitBtn.textContent = `Salvar porta e gerar ${total} chave(s)`;
+}
+
+function setPortaPreset(preset) {
+  const qtdClienteInput = el('qtd-cliente');
+  const qtdInstalacaoInput = el('qtd-instalacao');
+  if (!qtdClienteInput || !qtdInstalacaoInput) return;
+  if (preset === 'somenteCliente') {
+    qtdClienteInput.value = 2;
+    qtdInstalacaoInput.value = 0;
+  } else if (preset === 'somenteInstalacao') {
+    qtdClienteInput.value = 0;
+    qtdInstalacaoInput.value = 2;
+  } else {
+    qtdClienteInput.value = 2;
+    qtdInstalacaoInput.value = 1;
+  }
+  refreshPortaKeyConfig();
+}
+
 function bindForms() {
   el('obra-form').onsubmit = async (e) => {
     e.preventDefault();
@@ -258,17 +296,51 @@ function bindForms() {
 
   el('porta-form').onsubmit = async (e) => {
     e.preventDefault();
-    const data = Object.fromEntries(new FormData(e.target));
+    const form = e.target;
+    const data = Object.fromEntries(new FormData(form));
+    const qtdCliente = sanitizeKeyCount(data.qtdCliente);
+    const qtdInstalacao = sanitizeKeyCount(data.qtdInstalacao);
+    const totalChaves = qtdCliente + qtdInstalacao;
+
+    if (!totalChaves) return toast('Informe ao menos 1 chave (cliente ou instalação).');
+
     await runDb(async () => {
-      const portaRef = await addDoc(collection(db, 'portas'), { obraId: data.obraId, identificacao: data.identificacao, descricao: data.descricao || '', observacoes: data.observacoes || '', totalChaves: 3, qtdCliente: 2, qtdInstalacao: 1, dataCadastro: serverTimestamp() });
+      const portaRef = await addDoc(collection(db, 'portas'), {
+        obraId: data.obraId,
+        identificacao: data.identificacao,
+        descricao: data.descricao || '',
+        observacoes: data.observacoes || '',
+        totalChaves,
+        qtdCliente,
+        qtdInstalacao,
+        dataCadastro: serverTimestamp()
+      });
       const base = { obraId: data.obraId, portaId: portaRef.id, localAtual: 'empresa', disponivelAqui: true, entregue: false, requisitada: false, dataCadastro: serverTimestamp() };
-      await addDoc(collection(db, 'chaves'), { ...base, tipoDestino: 'cliente', statusAtual: 'separada_cliente' });
-      await addDoc(collection(db, 'chaves'), { ...base, tipoDestino: 'cliente', statusAtual: 'separada_cliente' });
-      await addDoc(collection(db, 'chaves'), { ...base, tipoDestino: 'instalacao', statusAtual: 'separada_instalacao' });
-      await addDoc(collection(db, 'movimentacoes'), { obraId: data.obraId, portaId: portaRef.id, tipoMovimentacao: 'cadastro', nomePessoa: 'sistema', categoriaPessoa: 'sistema', observacao: 'Porta cadastrada e 3 chaves geradas', dataHora: serverTimestamp(), usuarioAnonimoId: state.uid });
-      e.target.reset();
+
+      for (let i = 0; i < qtdCliente; i += 1) await addDoc(collection(db, 'chaves'), { ...base, tipoDestino: 'cliente', statusAtual: 'separada_cliente' });
+      for (let i = 0; i < qtdInstalacao; i += 1) await addDoc(collection(db, 'chaves'), { ...base, tipoDestino: 'instalacao', statusAtual: 'separada_instalacao' });
+
+      await addDoc(collection(db, 'movimentacoes'), {
+        obraId: data.obraId,
+        portaId: portaRef.id,
+        tipoMovimentacao: 'cadastro',
+        nomePessoa: 'sistema',
+        categoriaPessoa: 'sistema',
+        observacao: `Porta cadastrada e ${totalChaves} chave(s) gerada(s) (${qtdCliente} cliente / ${qtdInstalacao} instalação)`,
+        dataHora: serverTimestamp(),
+        usuarioAnonimoId: state.uid
+      });
+
+      const obraSelecionada = form.obraId.value;
+      form.reset();
+      form.obraId.value = obraSelecionada;
+      setPortaPreset('padrao');
     }, 'Porta e chaves criadas');
   };
+
+  el('qtd-cliente').oninput = refreshPortaKeyConfig;
+  el('qtd-instalacao').oninput = refreshPortaKeyConfig;
+  refreshPortaKeyConfig();
 
   el('filter-destino').onchange = renderChaves;
   el('filter-status').onchange = renderChaves;
@@ -355,6 +427,12 @@ function bindActions() {
       if (identificacao) await runDb(() => updateDoc(doc(db, 'portas', ep), { identificacao }), 'Porta atualizada');
     }
 
+
+    const preset = e.target.dataset.keyPreset;
+    if (preset) {
+      setPortaPreset(preset);
+      return;
+    }
 
     const mode = e.target.dataset.dashboardMode;
     if (mode) {

@@ -63,8 +63,24 @@
               <select required name="obraId" id="obra-select"></select>
               <input required name="identificacao" placeholder="Identificação da porta (ex.: P01)" />
               <input name="descricao" placeholder="Descrição da porta" />
+              <div class="key-config" id="key-config">
+                <label>Chaves do cliente
+                  <input id="qtd-cliente" name="qtdCliente" type="number" min="0" max="20" value="2" />
+                </label>
+                <label>Chaves da instalação
+                  <input id="qtd-instalacao" name="qtdInstalacao" type="number" min="0" max="20" value="1" />
+                </label>
+                <label>Total de chaves
+                  <input id="qtd-total" name="totalChaves" type="number" value="3" readonly />
+                </label>
+                <div class="preset-row" role="group" aria-label="Configurações rápidas">
+                  <button type="button" class="preset-btn" data-key-preset="padrao">Padrão (2 cliente / 1 instalação)</button>
+                  <button type="button" class="preset-btn" data-key-preset="somenteCliente">Somente cliente</button>
+                  <button type="button" class="preset-btn" data-key-preset="somenteInstalacao">Somente instalação</button>
+                </div>
+              </div>
               <textarea name="observacoes" placeholder="Observações"></textarea>
-              <button type="submit">Salvar porta e gerar 3 chaves</button>
+              <button id="save-porta-btn" type="submit">Salvar porta e gerar 3 chaves</button>
             </form>
           </div>
           <div class="panel"><h3>Lista de Portas</h3><div id="portas-list"></div></div>
