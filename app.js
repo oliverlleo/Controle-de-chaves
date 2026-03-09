@@ -248,6 +248,23 @@ async function applyMovement(chaveId, type, payload) {
 }
 
 
+
+function sanitizePortaCount(value) {
+  const num = Number.parseInt(value, 10);
+  return Number.isFinite(num) ? Math.max(1, Math.min(50, num)) : 1;
+}
+
+function buildPortaIdentificacoes(base, qtdPortas) {
+  const value = (base || '').trim();
+  if (qtdPortas <= 1) return [value];
+  const m = value.match(/^(.*?)(\d+)$/);
+  if (!m) return Array.from({ length: qtdPortas }, (_, i) => `${value}-${i + 1}`);
+  const prefix = m[1];
+  const start = Number.parseInt(m[2], 10);
+  const width = m[2].length;
+  return Array.from({ length: qtdPortas }, (_, i) => `${prefix}${String(start + i).padStart(width, '0')}`);
+}
+
 function sanitizeKeyCount(value) {
   const num = Number.parseInt(value, 10);
   return Number.isFinite(num) ? Math.max(0, Math.min(20, num)) : 0;
@@ -263,10 +280,13 @@ function refreshPortaKeyConfig() {
   const qtdInstalacao = sanitizeKeyCount(qtdInstalacaoInput.value);
   qtdClienteInput.value = qtdCliente;
   qtdInstalacaoInput.value = qtdInstalacao;
+  const qtdPortas = sanitizePortaCount(el('qtd-portas')?.value || 1);
+  if (el('qtd-portas')) el('qtd-portas').value = qtdPortas;
   const total = qtdCliente + qtdInstalacao;
   totalInput.value = total;
+  const totalGeral = total * qtdPortas;
   submitBtn.disabled = total === 0;
-  submitBtn.textContent = total ? `Salvar porta (${total} chave(s))` : 'Informe ao menos 1 chave';
+  submitBtn.textContent = total ? `Salvar ${qtdPortas} porta(s) • ${totalGeral} chave(s)` : 'Informe ao menos 1 chave';
 }
 
 function bindForms() {
@@ -284,51 +304,57 @@ function bindForms() {
     const data = Object.fromEntries(new FormData(form));
     const qtdCliente = sanitizeKeyCount(data.qtdCliente);
     const qtdInstalacao = sanitizeKeyCount(data.qtdInstalacao);
+    const qtdPortas = sanitizePortaCount(data.qtdPortas);
     const totalChaves = qtdCliente + qtdInstalacao;
 
     if (!totalChaves) return toast('Informe ao menos 1 chave (cliente ou instalação).');
 
     await runDb(async () => {
-      const portaRef = await addDoc(collection(db, 'portas'), {
-        obraId: data.obraId,
-        identificacao: data.identificacao,
-        descricao: data.descricao || '',
-        observacoes: data.observacoes || '',
-        totalChaves,
-        qtdCliente,
-        qtdInstalacao,
-        dataCadastro: serverTimestamp()
-      });
-      const base = { obraId: data.obraId, portaId: portaRef.id, localAtual: 'empresa', disponivelAqui: true, entregue: false, requisitada: false, dataCadastro: serverTimestamp() };
+      const identificacoes = buildPortaIdentificacoes(data.identificacao, qtdPortas);
+      for (const identificacao of identificacoes) {
+        const portaRef = await addDoc(collection(db, 'portas'), {
+          obraId: data.obraId,
+          identificacao,
+          descricao: data.descricao || '',
+          observacoes: data.observacoes || '',
+          totalChaves,
+          qtdCliente,
+          qtdInstalacao,
+          dataCadastro: serverTimestamp()
+        });
+        const base = { obraId: data.obraId, portaId: portaRef.id, localAtual: 'empresa', disponivelAqui: true, entregue: false, requisitada: false, dataCadastro: serverTimestamp() };
 
-      for (let i = 0; i < qtdCliente; i += 1) await addDoc(collection(db, 'chaves'), { ...base, tipoDestino: 'cliente', statusAtual: 'separada_cliente' });
-      for (let i = 0; i < qtdInstalacao; i += 1) await addDoc(collection(db, 'chaves'), { ...base, tipoDestino: 'instalacao', statusAtual: 'separada_instalacao' });
+        for (let i = 0; i < qtdCliente; i += 1) await addDoc(collection(db, 'chaves'), { ...base, tipoDestino: 'cliente', statusAtual: 'separada_cliente' });
+        for (let i = 0; i < qtdInstalacao; i += 1) await addDoc(collection(db, 'chaves'), { ...base, tipoDestino: 'instalacao', statusAtual: 'separada_instalacao' });
 
-      await addDoc(collection(db, 'movimentacoes'), {
-        obraId: data.obraId,
-        portaId: portaRef.id,
-        tipoMovimentacao: 'cadastro',
-        nomePessoa: 'sistema',
-        categoriaPessoa: 'sistema',
-        observacao: `Porta cadastrada e ${totalChaves} chave(s) gerada(s) (${qtdCliente} cliente / ${qtdInstalacao} instalação)`,
-        dataHora: serverTimestamp(),
-        usuarioAnonimoId: state.uid
-      });
+        await addDoc(collection(db, 'movimentacoes'), {
+          obraId: data.obraId,
+          portaId: portaRef.id,
+          tipoMovimentacao: 'cadastro',
+          nomePessoa: 'sistema',
+          categoriaPessoa: 'sistema',
+          observacao: `Porta ${identificacao} cadastrada com ${totalChaves} chave(s) (${qtdCliente} cliente / ${qtdInstalacao} instalação)`,
+          dataHora: serverTimestamp(),
+          usuarioAnonimoId: state.uid
+        });
+      }
 
       const obraSelecionada = form.obraId.value;
       const continuarNaMesmaObra = el('keep-obra')?.checked;
       form.querySelector('[name="identificacao"]').value = '';
       form.querySelector('[name="descricao"]').value = '';
       form.querySelector('[name="observacoes"]').value = '';
+      form.querySelector('#qtd-portas').value = 1;
       form.querySelector('#qtd-cliente').value = 2;
       form.querySelector('#qtd-instalacao').value = 1;
       if (continuarNaMesmaObra) form.obraId.value = obraSelecionada;
       else form.obraId.value = '';
       refreshPortaKeyConfig();
       form.querySelector('[name="identificacao"]').focus();
-    }, 'Porta e chaves criadas');
+    }, `${qtdPortas} porta(s) e ${totalChaves * qtdPortas} chave(s) criadas`);
   };
 
+  el('qtd-portas').oninput = refreshPortaKeyConfig;
   el('qtd-cliente').oninput = refreshPortaKeyConfig;
   el('qtd-instalacao').oninput = refreshPortaKeyConfig;
   refreshPortaKeyConfig();

@@ -61,7 +61,8 @@
             <h3>Cadastrar Porta</h3>
             <form id="porta-form" class="grid-form">
               <select required name="obraId" id="obra-select"></select>
-              <input required name="identificacao" placeholder="Identificação da porta (ex.: P01)" />
+              <input required name="identificacao" placeholder="Identificação inicial (ex.: P01)" />
+              <input id="qtd-portas" name="qtdPortas" type="number" min="1" max="50" value="1" placeholder="Qtd. de portas" />
               <input name="descricao" placeholder="Descrição da porta" />
               <div class="key-config" id="key-config">
                 <label>Qtd. cliente
@@ -75,7 +76,7 @@
                 </label>
               </div>
               <textarea name="observacoes" placeholder="Observações"></textarea>
-              <label class="check-inline"><input id="keep-obra" type="checkbox" checked />Adicionar outra porta nesta obra após salvar</label>
+              <label class="check-inline"><input id="keep-obra" type="checkbox" checked />Manter obra selecionada após salvar</label>
               <button id="save-porta-btn" type="submit">Salvar porta (3 chave(s))</button>
             </form>
           </div>

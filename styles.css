@@ -32,16 +32,23 @@ button[type="submit"]:hover { transform: translateY(-1px); background: #ff3047; 
 .key-config { grid-column: 1 / -1; display:grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); padding: 10px; border:1px solid #34343d; border-radius: 12px; background: #131316; animation: fade .25s ease; }
 .key-config label { display:grid; gap: 6px; font-size: .85rem; color: var(--muted); }
 .key-config input[readonly] { background:#1c1c22; border-style:dashed; }
-#porta-form { align-items: start; }
-#porta-form > * { align-self: start; }
-#porta-form textarea[name="observacoes"] { min-height: 44px; max-height: 120px; }
-#porta-form .key-config { grid-column: 1 / -1; grid-template-columns: repeat(3, minmax(140px, 1fr)); }
+#porta-form { grid-template-columns: 1.2fr 1fr .8fr 1fr 1fr auto; align-items: end; }
+#porta-form > * { align-self: end; }
+#porta-form .key-config { grid-column: auto; grid-template-columns: repeat(3, minmax(90px, 1fr)); padding: 8px; }
+#porta-form .key-config label { font-size: .78rem; }
+#porta-form textarea[name="observacoes"] { min-height: 44px; max-height: 44px; resize: none; }
 .check-inline { display:flex; align-items:center; gap:8px; font-size:.9rem; color: var(--muted); }
 .check-inline input { width:auto; }
-#save-porta-btn { grid-column: span 2; white-space: nowrap; }
+#porta-form .check-inline { align-self: center; }
+#save-porta-btn { width: auto; padding: 10px 16px; white-space: nowrap; }
+@media (max-width: 1200px) {
+  #porta-form { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); align-items: start; }
+  #porta-form > * { align-self: start; }
+  #porta-form .key-config { grid-column: 1 / -1; grid-template-columns: repeat(3, minmax(120px, 1fr)); }
+  #save-porta-btn { width: 100%; }
+}
 @media (max-width: 900px) {
   #porta-form .key-config { grid-template-columns: 1fr; }
-  #save-porta-btn { grid-column: 1 / -1; }
 }
 
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
