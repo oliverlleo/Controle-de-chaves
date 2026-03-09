@@ -233,9 +233,12 @@ function subscribe() {
     el('uid-display').textContent = authResult.user.uid;
   } else {
     state.authOk = false;
-    state.uid = 'sem-auth-configurada';
-    el('uid-display').textContent = `${state.uid} (${authResult.code || 'erro'})`;
-    setAlert('Auth anônima não configurada no Firebase. O sistema continua, mas o UID será local até habilitar: Firebase Console > Authentication > Sign-in method > Anonymous.');
+    const code = authResult.code || 'erro-desconhecido';
+    state.uid = 'sem-auth';
+    el('uid-display').textContent = `${state.uid} (${code})`;
+
+    const authMessage = humanizeError(authResult.error || { code });
+    setAlert(`Falha ao autenticar anonimamente: ${authMessage} (código: ${code}).`);
   }
 
   subscribe();
