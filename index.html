@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Controle de Chaves Operacional</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <aside class="sidebar">
+        <h1>Chaves<span>Pro</span></h1>
+        <nav>
+          <button class="nav-btn active" data-view="dashboard">Dashboard</button>
+          <button class="nav-btn" data-view="obras">Obras</button>
+          <button class="nav-btn" data-view="portas">Portas</button>
+          <button class="nav-btn" data-view="historico">Histórico</button>
+        </nav>
+        <div class="user-box">
+          <p>Usuário anônimo</p>
+          <small id="uid-label">conectando...</small>
+        </div>
+      </aside>
+
+      <main class="content">
+        <section id="dashboard" class="view active">
+          <header class="section-head">
+            <div>
+              <h2>Painel operacional de chaves</h2>
+              <p>Veja onde cada chave está e movimente em poucos cliques.</p>
+            </div>
+            <input id="global-search" type="search" placeholder="Buscar obra, porta, pessoa, status..." />
+          </header>
+
+          <div id="summary-cards" class="summary-grid"></div>
+
+          <div class="filters">
+            <select id="filtro-obra"><option value="">Todas as obras</option></select>
+            <select id="filtro-porta"><option value="">Todas as portas</option></select>
+            <select id="filtro-tipo">
+              <option value="">Todos os tipos</option>
+              <option value="cliente">Cliente</option>
+              <option value="instalacao">Instalação</option>
+            </select>
+            <select id="filtro-status">
+              <option value="">Todos os status</option>
+              <option value="empresa">Na empresa</option>
+              <option value="entregue_cliente">Entregue ao cliente</option>
+              <option value="com_instalador">Com instalador</option>
+              <option value="fora_devolucao">Aguardando devolução</option>
+            </select>
+          </div>
+
+          <div class="kanban" id="kanban-columns"></div>
+        </section>
+
+        <section id="obras" class="view">
+          <header class="section-head"><h2>Cadastro de obras</h2></header>
+          <form id="obra-form" class="card form-grid">
+            <input name="nome" placeholder="Nome da obra*" required />
+            <input name="codigo" placeholder="Código" />
+            <input name="cliente" placeholder="Cliente" />
+            <input name="endereco" placeholder="Endereço" />
+            <textarea name="observacao" placeholder="Observações"></textarea>
+            <button type="submit">Salvar obra</button>
+          </form>
+          <div id="obras-list" class="list"></div>
+        </section>
+
+        <section id="portas" class="view">
+          <header class="section-head"><h2>Cadastro de portas</h2></header>
+          <form id="porta-form" class="card form-grid">
+            <select name="obraId" required id="porta-obra-select"></select>
+            <input name="identificacao" placeholder="Identificação da porta*" required />
+            <input name="descricao" placeholder="Descrição" />
+            <button type="submit">Salvar porta e gerar 3 chaves</button>
+          </form>
+          <div id="portas-list" class="list"></div>
+        </section>
+
+        <section id="historico" class="view">
+          <header class="section-head"><h2>Histórico de movimentações</h2></header>
+          <div id="mov-list" class="list"></div>
+        </section>
+      </main>
+    </div>
+
+    <div id="action-modal" class="modal hidden">
+      <div class="modal-content">
+        <h3 id="modal-title"></h3>
+        <p id="modal-key-info"></p>
+        <form id="action-form" class="form-grid">
+          <input name="nomePessoa" placeholder="Quem recebeu/devolveu?*" required />
+          <div class="split">
+            <input type="date" name="data" required />
+            <input type="time" name="hora" required />
+          </div>
+          <textarea name="observacao" placeholder="Observação (opcional)"></textarea>
+          <div class="modal-actions">
+            <button type="button" id="cancel-modal" class="ghost">Cancelar</button>
+            <button type="submit" id="confirm-action">Confirmar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="toast" class="toast hidden"></div>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
