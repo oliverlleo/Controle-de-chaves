@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Controle de Chaves | Operacional</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <h1>KeyFlow</h1>
+        <p class="subtitle">Controle operacional de chaves</p>
+        <nav>
+          <button class="nav-btn active" data-view="dashboard">Dashboard</button>
+          <button class="nav-btn" data-view="obras">Obras</button>
+          <button class="nav-btn" data-view="portas">Portas</button>
+          <button class="nav-btn" data-view="historico">Histórico</button>
+        </nav>
+        <div class="uid-box">Usuário: <span id="anonUid">conectando...</span></div>
+      </aside>
+
+      <main class="main-content">
+        <section id="dashboardView" class="view active">
+          <header class="top-bar">
+            <h2>Dashboard Operacional</h2>
+            <div class="status-pill" id="connectionStatus">Sincronizando...</div>
+          </header>
+
+          <section class="summary-grid" id="summaryGrid"></section>
+
+          <section class="toolbar">
+            <input id="searchInput" placeholder="Buscar por obra, porta, pessoa ou status" />
+            <select id="obraFilter"><option value="">Todas as obras</option></select>
+            <select id="tipoFilter">
+              <option value="">Todos os tipos</option>
+              <option value="cliente">Cliente</option>
+              <option value="instalacao">Instalação</option>
+            </select>
+            <select id="statusFilter">
+              <option value="">Todos os status</option>
+              <option value="empresa">Na empresa</option>
+              <option value="entregue_cliente">Entregues ao cliente</option>
+              <option value="com_instalador">Com instalador</option>
+              <option value="fora_devolucao">Aguardando devolução</option>
+              <option value="devolvida_recente">Devolvidas recentemente</option>
+            </select>
+          </section>
+
+          <section class="kanban" id="kanbanBoard"></section>
+        </section>
+
+        <section id="obrasView" class="view">
+          <header class="top-bar"><h2>Cadastro de Obras</h2></header>
+          <form id="obraForm" class="form-grid">
+            <input name="nome" placeholder="Nome da obra" required />
+            <input name="codigo" placeholder="Código (opcional)" />
+            <input name="cliente" placeholder="Cliente (opcional)" />
+            <input name="endereco" placeholder="Endereço (opcional)" />
+            <textarea name="observacao" placeholder="Observações"></textarea>
+            <button type="submit" class="primary">Salvar obra</button>
+          </form>
+          <div id="obrasList" class="table-list"></div>
+        </section>
+
+        <section id="portasView" class="view">
+          <header class="top-bar"><h2>Cadastro de Portas</h2></header>
+          <form id="portaForm" class="form-grid">
+            <select name="obraId" required id="portaObraSelect"><option value="">Selecione a obra</option></select>
+            <input name="identificacao" placeholder="Identificação da porta" required />
+            <input name="descricao" placeholder="Descrição (opcional)" />
+            <button type="submit" class="primary">Salvar porta e gerar chaves</button>
+          </form>
+          <div id="portasList" class="table-list"></div>
+        </section>
+
+        <section id="historicoView" class="view">
+          <header class="top-bar"><h2>Histórico de Movimentações</h2></header>
+          <div id="historicoList" class="table-list"></div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="actionDialog">
+      <form id="actionForm" method="dialog" class="dialog-form">
+        <h3 id="dialogTitle">Movimentar chave</h3>
+        <p id="dialogSubtitle"></p>
+        <input type="hidden" name="chaveId" />
+        <input type="hidden" name="acao" />
+        <input name="nomePessoa" placeholder="Nome da pessoa" required />
+        <input name="data" type="date" required />
+        <input name="hora" type="time" required />
+        <textarea name="observacao" placeholder="Observação (opcional)"></textarea>
+        <menu>
+          <button value="cancel">Cancelar</button>
+          <button value="confirm" class="primary">Confirmar</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <div id="toast" class="toast"></div>
+
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>
