@@ -87,7 +87,7 @@
 
         <section id="movimentacoes" class="page">
           <div class="panel">
-            <h3>Movimentação rápida por chave</h3>
+            <div class="mov-head"><h3>Movimentação rápida por chave</h3><button id="open-batch-move" class="btn-movimentar">MOVIMENTAR</button></div>
             <input id="mov-search" placeholder="Filtrar cartões por obra, porta ou tipo..." />
             <div id="mov-cards" class="key-grid"></div>
           </div>
@@ -123,6 +123,36 @@
     </div>
 
 
+    <div id="batch-movement-modal" class="modal" hidden>
+      <div class="modal-card modal-xl">
+        <h3>Movimentar em lote</h3>
+        <div class="grid-form">
+          <select id="batch-obra-select"></select>
+          <input id="batch-person" placeholder="Responsável pela retirada/entrega" />
+          <input id="batch-role" placeholder="Categoria/Papel (opcional)" />
+          <input id="batch-datetime" type="datetime-local" />
+          <textarea id="batch-note" placeholder="Observação (opcional)"></textarea>
+        </div>
+        <div id="batch-keys-grid" class="batch-grid"></div>
+        <div class="modal-actions">
+          <button type="button" id="batch-close">Fechar</button>
+          <button type="button" id="batch-devolver">Devolver selecionadas</button>
+          <button type="button" id="batch-request-client" class="btn-movimentar">Requisitar ao Cliente</button>
+          <button type="button" id="batch-confirm-client" class="btn-movimentar">Confirmar entrega ao Cliente</button>
+          <button type="button" id="batch-request-inst" class="btn-inst">Entregue ao Instalador</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="key-history-modal" class="modal" hidden>
+      <div class="modal-card modal-lg">
+        <h3 id="key-history-title">Histórico da chave</h3>
+        <div id="key-history-body"></div>
+        <div class="modal-actions">
+          <button type="button" id="close-key-history">Fechar</button>
+        </div>
+      </div>
+    </div>
 
     <div id="client-keys-modal" class="modal" hidden>
       <div class="modal-card modal-lg">

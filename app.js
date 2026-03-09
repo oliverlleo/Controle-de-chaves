@@ -3,7 +3,7 @@ import {
   serverTimestamp, query, orderBy, onSnapshot
 } from './firebase.js';
 
-const state = { uid: 'sem-auth', obras: [], portas: [], chaves: [], movimentacoes: [], authOk: false, pendingMove: null, dashboardMode: 'resumida', dashboardBuckets: {} };
+const state = { uid: 'sem-auth', obras: [], portas: [], chaves: [], movimentacoes: [], authOk: false, pendingMove: null, dashboardMode: 'resumida', dashboardBuckets: {}, batchSelection: { cliente: new Set(), instalacao: new Set() } };
 const STATUSES = ['separada_cliente', 'separada_instalacao', 'requisitada', 'entregue_cliente', 'indisponivel'];
 const el = (id) => document.getElementById(id);
 const toast = (msg) => { const t = el('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2200); };
@@ -185,15 +185,17 @@ function getAllowedActions(chave) {
   const actions = [];
   const isCliente = chave.tipoDestino === 'cliente';
   const isInst = chave.tipoDestino === 'instalacao';
-  if (chave.statusAtual === 'requisitada') actions.push({ type: 'devolucao', label: 'Devolver' });
-  if (chave.disponivelAqui && isCliente && chave.statusAtual !== 'entregue_cliente') {
-    actions.push({ type: 'requisicao', label: 'Requisitar (Cliente)' });
-    actions.push({ type: 'entrega_cliente', label: 'Entregar definitivo ao Cliente' });
+
+  if (chave.statusAtual === 'requisitada') {
+    actions.push({ type: 'devolucao', label: 'Devolver' });
+    if (isCliente) actions.push({ type: 'entrega_cliente', label: 'Confirmar entrega' });
   }
-  if (chave.disponivelAqui && isInst && chave.statusAtual !== 'entregue_cliente') {
-    actions.push({ type: 'requisicao', label: 'Requisitar (Instalação)' });
-    actions.push({ type: 'entrega_cliente', label: 'Entregar definitivo ao Cliente' });
+
+  if (chave.disponivelAqui && chave.statusAtual !== 'requisitada' && chave.statusAtual !== 'entregue_cliente') {
+    if (isCliente) actions.push({ type: 'requisicao', label: 'Requisitar (Cliente)' });
+    if (isInst) actions.push({ type: 'requisicao', label: 'Entregue ao Instalador' });
   }
+
   return actions;
 }
 
@@ -203,9 +205,121 @@ function renderMovimentacoes() {
     .filter((c) => `${obraNome(c.obraId)} ${portaNome(c.portaId)} ${c.tipoDestino} ${c.statusAtual}`.toLowerCase().includes(q))
     .map((c) => {
       const actions = getAllowedActions(c).map((a) => `<button data-move-key="${c.id}" data-move-type="${a.type}">${a.label}</button>`).join('');
-      return `<article class="key-card"><h4>${obraNome(c.obraId)} • ${portaNome(c.portaId)}</h4><p><span class="badge b-${c.tipoDestino}">${c.tipoDestino}</span> <span class="badge b-status">${c.statusAtual}</span></p><small>Local: ${c.localAtual || 'empresa'}</small><div class="key-actions">${actions || '<small>Sem ações disponíveis</small>'}</div></article>`;
+      const historyBtn = `<button class="ghost-btn" data-key-history="${c.id}">Histórico</button>`;
+      return `<article class="key-card"><h4>${obraNome(c.obraId)} • ${portaNome(c.portaId)}</h4><p><span class="badge b-${c.tipoDestino}">${c.tipoDestino}</span> <span class="badge b-status">${c.statusAtual}</span></p><small>Local: ${c.localAtual || 'empresa'}</small><div class="key-actions">${actions || ''}${historyBtn}</div></article>`;
     }).join('');
   el('mov-cards').innerHTML = cards || '<small>Nenhuma chave encontrada.</small>';
+}
+
+function renderBatchMovementModal() {
+  const obraSelect = el('batch-obra-select');
+  if (!obraSelect) return;
+  const current = obraSelect.value;
+  obraSelect.innerHTML = '<option value="">Selecione a obra</option>' + state.obras.map((o) => `<option value="${o.id}">${o.nome}</option>`).join('');
+  obraSelect.value = state.obras.some((o) => o.id === current) ? current : '';
+  renderBatchKeys();
+}
+
+function selectedKeyIds() {
+  return {
+    cliente: [...state.batchSelection.cliente],
+    instalacao: [...state.batchSelection.instalacao]
+  };
+}
+
+function renderBatchKeys() {
+  const host = el('batch-keys-grid');
+  if (!host) return;
+  const obraId = el('batch-obra-select').value;
+  if (!obraId) {
+    host.innerHTML = '<small>Selecione uma obra para listar as chaves disponíveis.</small>';
+    updateBatchButtons();
+    return;
+  }
+
+  const available = state.chaves.filter((c) => c.obraId === obraId && c.statusAtual !== 'entregue_cliente');
+  const byType = (tipo) => available.filter((c) => c.tipoDestino === tipo);
+
+  const col = (tipo, title, css) => {
+    const rows = byType(tipo).map((c) => {
+      const checked = state.batchSelection[tipo].has(c.id) ? 'checked' : '';
+      return `<label class="batch-item ${css}"><input type="checkbox" data-batch-key="${c.id}" data-batch-type="${tipo}" ${checked} /> <span>${portaNome(c.portaId)} • ${c.statusAtual}</span></label>`;
+    }).join('') || '<small>Sem chaves</small>';
+    return `<div class="batch-col ${css}"><h4>${title}</h4>${rows}</div>`;
+  };
+
+  host.innerHTML = `${col('cliente', 'Cliente', 'batch-client')}${col('instalacao', 'Instalação', 'batch-inst')}`;
+  updateBatchButtons();
+}
+
+function updateBatchButtons() {
+  const ids = selectedKeyIds();
+  const keys = state.chaves.filter((c) => ids.cliente.includes(c.id) || ids.instalacao.includes(c.id));
+  const clientKeys = keys.filter((c) => c.tipoDestino === 'cliente');
+  const instKeys = keys.filter((c) => c.tipoDestino === 'instalacao');
+
+  const canRequestClient = clientKeys.some((c) => c.disponivelAqui && c.statusAtual !== 'requisitada' && c.statusAtual !== 'entregue_cliente');
+  const canConfirmClient = clientKeys.some((c) => c.statusAtual === 'requisitada');
+  const canRequestInst = instKeys.some((c) => c.disponivelAqui && c.statusAtual !== 'requisitada' && c.statusAtual !== 'entregue_cliente');
+  const canDevolver = keys.some((c) => c.statusAtual === 'requisitada');
+
+  el('batch-request-client').disabled = !canRequestClient;
+  el('batch-confirm-client').disabled = !canConfirmClient;
+  el('batch-request-inst').disabled = !canRequestInst;
+  el('batch-devolver').disabled = !canDevolver;
+}
+
+function openBatchModal() {
+  state.batchSelection = { cliente: new Set(), instalacao: new Set() };
+  el('batch-person').value = '';
+  el('batch-role').value = '';
+  el('batch-note').value = '';
+  el('batch-datetime').value = isoLocal();
+  renderBatchMovementModal();
+  el('batch-movement-modal').hidden = false;
+}
+
+function closeBatchModal() {
+  el('batch-movement-modal').hidden = true;
+}
+
+async function applyBatchMovement(type, ids) {
+  const payload = {
+    nomePessoa: el('batch-person').value.trim(),
+    categoriaPessoa: el('batch-role').value.trim(),
+    observacao: el('batch-note').value.trim(),
+    dataHoraISO: el('batch-datetime').value
+  };
+  if (!payload.nomePessoa || !payload.dataHoraISO) return toast('Informe responsável e data/hora.');
+  if (!ids.length) return toast('Selecione ao menos uma chave.');
+
+  await runDb(async () => {
+    for (const id of ids) await applyMovement(id, type, payload);
+  }, `${ids.length} movimentação(ões) registrada(s)`);
+  closeBatchModal();
+}
+
+function openKeyHistory(keyId) {
+  const chave = state.chaves.find((c) => c.id === keyId);
+  const title = chave ? `${obraNome(chave.obraId)} • ${portaNome(chave.portaId)}` : 'Histórico da chave';
+  el('key-history-title').textContent = `Histórico da chave - ${title}`;
+
+  const rows = state.movimentacoes
+    .filter((m) => m.chaveId === keyId)
+    .sort((a, b) => {
+      const da = a.dataHora?.toDate ? a.dataHora.toDate() : new Date(a.dataHora || 0);
+      const db = b.dataHora?.toDate ? b.dataHora.toDate() : new Date(b.dataHora || 0);
+      return da - db;
+    })
+    .map((m) => `<div class="timeline-item"><b>${m.tipoMovimentacao}</b> • ${m.nomePessoa || 'Sem pessoa'}<br><small>${m.categoriaPessoa || '-'} • ${fmtDate(m.dataHora)}</small><br><small>${m.observacao || 'Sem observação'}</small></div>`)
+    .join('') || '<small>Sem histórico para esta chave.</small>';
+
+  el('key-history-body').innerHTML = `<div class="timeline">${rows}</div>`;
+  el('key-history-modal').hidden = false;
+}
+
+function closeKeyHistory() {
+  el('key-history-modal').hidden = true;
 }
 
 function renderHistorico() {
@@ -400,6 +514,45 @@ function bindForms() {
   el('global-search').oninput = () => { renderChaves(); renderMovimentacoes(); };
   el('global-search').addEventListener('input', renderPortas);
   el('mov-search').oninput = renderMovimentacoes;
+
+  el('open-batch-move').onclick = openBatchModal;
+  el('batch-close').onclick = closeBatchModal;
+  el('close-key-history').onclick = closeKeyHistory;
+  el('batch-obra-select').onchange = () => {
+    state.batchSelection = { cliente: new Set(), instalacao: new Set() };
+    renderBatchKeys();
+  };
+  el('batch-keys-grid').addEventListener('change', (e) => {
+    const box = e.target.closest('[data-batch-key]');
+    if (!box) return;
+    const { batchKey, batchType } = box.dataset;
+    if (box.checked) state.batchSelection[batchType].add(batchKey);
+    else state.batchSelection[batchType].delete(batchKey);
+    updateBatchButtons();
+  });
+
+  el('batch-request-client').onclick = () => {
+    const ids = [...state.batchSelection.cliente].filter((id) => {
+      const c = state.chaves.find((k) => k.id === id);
+      return c && c.disponivelAqui && c.statusAtual !== 'requisitada' && c.statusAtual !== 'entregue_cliente';
+    });
+    applyBatchMovement('requisicao', ids);
+  };
+  el('batch-confirm-client').onclick = () => {
+    const ids = [...state.batchSelection.cliente].filter((id) => state.chaves.find((c) => c.id === id)?.statusAtual === 'requisitada');
+    applyBatchMovement('entrega_cliente', ids);
+  };
+  el('batch-request-inst').onclick = () => {
+    const ids = [...state.batchSelection.instalacao].filter((id) => {
+      const c = state.chaves.find((k) => k.id === id);
+      return c && c.disponivelAqui && c.statusAtual !== 'requisitada' && c.statusAtual !== 'entregue_cliente';
+    });
+    applyBatchMovement('requisicao', ids);
+  };
+  el('batch-devolver').onclick = () => {
+    const ids = [...state.batchSelection.cliente, ...state.batchSelection.instalacao].filter((id) => state.chaves.find((c) => c.id === id)?.statusAtual === 'requisitada');
+    applyBatchMovement('devolucao', ids);
+  };
   el('filter-status').innerHTML = '<option value="">Todos os status</option>' + STATUSES.map((s) => `<option value="${s}">${s}</option>`).join('');
 
   el('movement-form').onsubmit = async (e) => {
@@ -422,7 +575,8 @@ function bindForms() {
 
 function openModal(keyId, type) {
   state.pendingMove = { keyId, type };
-  el('modal-title').textContent = `Confirmar ${type.replace('_', ' ')}`;
+  const labels = { requisicao: 'Requisitar chave', devolucao: 'Confirmar devolução', entrega_cliente: 'Confirmar entrega ao cliente' };
+  el('modal-title').textContent = labels[type] || `Confirmar ${type.replace('_', ' ')}`;
   el('mv-person').value = '';
   el('mv-role').value = '';
   el('mv-note').value = '';
@@ -496,6 +650,9 @@ function bindActions() {
       const chavesCliente = list.filter((c) => ((state.obras.find((o) => o.id === c.obraId)?.cliente || 'Sem cliente').trim() || 'Sem cliente') === cliente);
       openClientModal(cliente, categoria, chavesCliente);
     }
+    const historyKey = e.target.dataset.keyHistory;
+    if (historyKey) openKeyHistory(historyKey);
+
     const moveKey = e.target.dataset.moveKey;
     const moveType = e.target.dataset.moveType;
     if (moveKey && moveType) openModal(moveKey, moveType);
@@ -511,6 +668,7 @@ function bindCollection(name, setter) {
     renderDashboard();
     renderHistorico();
     renderMovimentacoes();
+    renderBatchMovementModal();
   }, (error) => {
     const msg = humanizeError(error);
     setAlert(msg);
