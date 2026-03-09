@@ -161,7 +161,13 @@ function renderObras() {
 }
 
 function renderPortas() {
-  el('portas-list').innerHTML = table(['Obra', 'Porta', 'Descrição', 'Chaves', 'Ações'], state.portas.map((p) => `<tr><td>${obraNome(p.obraId)}</td><td>${p.identificacao}</td><td>${p.descricao || '-'}</td><td>${p.qtdCliente || 0} cliente / ${p.qtdInstalacao || 0} instalação (${p.totalChaves || ((p.qtdCliente || 0) + (p.qtdInstalacao || 0))} total)</td><td><button data-edit-porta="${p.id}">Editar</button> <button data-del-porta="${p.id}">Excluir</button></td></tr>`));
+  const q = (el('global-search')?.value || '').toLowerCase().trim();
+  const list = state.portas.filter((p) => {
+    if (!q) return true;
+    return `${obraNome(p.obraId)} ${p.identificacao || ''} ${p.descricao || ''}`.toLowerCase().includes(q);
+  });
+
+  el('portas-list').innerHTML = table(['Obra', 'Porta', 'Descrição', 'Chaves', 'Ações'], list.map((p) => `<tr><td>${obraNome(p.obraId)}</td><td>${p.identificacao}</td><td>${p.descricao || '-'}</td><td>${p.qtdCliente || 0} cliente / ${p.qtdInstalacao || 0} instalação (${p.totalChaves || ((p.qtdCliente || 0) + (p.qtdInstalacao || 0))} total)</td><td><button data-edit-porta="${p.id}">Editar</button> <button data-del-porta="${p.id}">Excluir</button></td></tr>`));
 }
 
 function renderChaves() {
@@ -260,8 +266,8 @@ function makePortaRow(values = {}) {
   row.innerHTML = `
     <input class="row-identificacao" required placeholder="Identificação da porta (ex.: P01)" value="${values.identificacao || ''}" />
     <input class="row-descricao" placeholder="Descrição" value="${values.descricao || ''}" />
-    <input class="row-qtd-cliente" type="number" min="0" max="20" value="${values.qtdCliente ?? 2}" />
-    <input class="row-qtd-instalacao" type="number" min="0" max="20" value="${values.qtdInstalacao ?? 1}" />
+    <input class="row-qtd-cliente" type="number" min="0" max="20" value="${values.qtdCliente ?? 2}" aria-label="Quantidade de chaves do cliente" title="Quantidade de chaves do cliente" />
+    <input class="row-qtd-instalacao" type="number" min="0" max="20" value="${values.qtdInstalacao ?? 1}" aria-label="Quantidade de chaves da instalação" title="Quantidade de chaves da instalação" />
     <input class="row-total" type="number" value="0" readonly />
     <button type="button" class="row-remove">−</button>
   `;
@@ -392,6 +398,7 @@ function bindForms() {
   el('filter-status').onchange = renderChaves;
   el('filter-obra').onchange = renderChaves;
   el('global-search').oninput = () => { renderChaves(); renderMovimentacoes(); };
+  el('global-search').addEventListener('input', renderPortas);
   el('mov-search').oninput = renderMovimentacoes;
   el('filter-status').innerHTML = '<option value="">Todos os status</option>' + STATUSES.map((s) => `<option value="${s}">${s}</option>`).join('');
 

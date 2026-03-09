@@ -29,11 +29,15 @@ textarea { min-height: 44px; }
 button[type="submit"] { background: var(--red); font-weight: 700; border: none; cursor: pointer; transition: transform .2s, background .2s; }
 button[type="submit"]:hover { transform: translateY(-1px); background: #ff3047; }
 
-#porta-form { grid-template-columns: 1fr 1fr; align-items: start; }
+#porta-form { grid-template-columns: 1fr; align-items: start; }
 #porta-form textarea[name="observacoes"] { min-height: 44px; max-height: 44px; resize: none; }
 .porta-rows { grid-column: 1 / -1; display: grid; gap: 8px; }
-.porta-row { display:grid; grid-template-columns: 1.2fr 1fr .7fr .7fr .6fr auto; gap: 8px; align-items: center; padding: 8px; border:1px solid #34343d; border-radius: 10px; background: #131316; animation: fade .2s ease; }
+.porta-row { display:grid; grid-template-columns: 1.25fr 1fr 120px 120px 90px auto; gap: 8px; align-items: center; padding: 8px; border:1px solid #34343d; border-radius: 10px; background: #131316; animation: fade .2s ease; }
 .porta-row .row-total { background:#1c1c22; border-style:dashed; }
+.porta-row-head { display:grid; grid-template-columns: 1.25fr 1fr 120px 120px 90px auto; gap:8px; color: var(--muted); font-size:.8rem; padding: 0 8px; }
+.porta-row input { height: 38px; padding: 8px 10px; }
+.porta-row .row-qtd-cliente, .porta-row .row-qtd-instalacao, .porta-row .row-total { text-align: center; }
+
 .row-remove { width:auto; padding: 10px 14px; background:#2a2a31; border:1px solid #4a4a55; cursor:pointer; }
 .row-remove:hover { border-color:#ff4f66; }
 .porta-actions { grid-column: 1 / -1; display:flex; gap:10px; align-items:center; justify-content:space-between; }
@@ -41,8 +45,8 @@ button[type="submit"]:hover { transform: translateY(-1px); background: #ff3047; 
 .ghost-btn:hover { border-color: var(--red-soft); }
 #save-porta-btn { width:auto; white-space: nowrap; }
 @media (max-width: 1200px) {
-  #porta-form { grid-template-columns: 1fr; }
-  .porta-row { grid-template-columns: 1fr 1fr 1fr 1fr 1fr auto; }
+  .porta-row-head { display:none; }
+  .porta-row { grid-template-columns: 1fr 1fr 100px 100px 80px auto; }
 }
 @media (max-width: 900px) {
   .porta-row { grid-template-columns: 1fr; }
