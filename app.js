@@ -74,12 +74,12 @@ function renderDashboard() {
       <article class="card"><small>Devoluções recentes</small><strong>${b.devolvidasRecentes.length}</strong></article>
     </div>
     <div class="dashboard-grid">
-      <div class="panel"><h3>Estas são as chaves do cliente que estão aqui</h3>${renderKeyMiniList(b.clienteAqui)}</div>
-      <div class="panel"><h3>Estas são as chaves da instalação que estão aqui</h3>${renderKeyMiniList(b.instalacaoAqui)}</div>
-      <div class="panel"><h3>Estas foram entregues ao cliente</h3>${renderKeyMiniList(b.entregueCliente)}</div>
-      <div class="panel"><h3>Estas foram entregues ao instalador</h3>${renderKeyMiniList(b.entregueInstalador)}</div>
-      <div class="panel"><h3>Estas estão atualmente requisitadas</h3>${renderKeyMiniList(b.requisitadas)}</div>
-      <div class="panel"><h3>Estas foram devolvidas recentemente</h3>${renderMoveMiniList(b.devolvidasRecentes)}</div>
+      <div class="panel"><h3>Chaves do Cliente</h3>${renderKeyMiniList(b.clienteAqui)}</div>
+      <div class="panel"><h3>Chaves da Instalação</h3>${renderKeyMiniList(b.instalacaoAqui)}</div>
+      <div class="panel"><h3>Chaves Entregues ao Cliente</h3>${renderKeyMiniList(b.entregueCliente)}</div>
+      <div class="panel"><h3>Chaves Entregues ao Instalador</h3>${renderKeyMiniList(b.entregueInstalador)}</div>
+      <div class="panel"><h3>Chaves Requisitadas</h3>${renderKeyMiniList(b.requisitadas)}</div>
+      <div class="panel"><h3>Devoluções Recentes</h3>${renderMoveMiniList(b.devolvidasRecentes)}</div>
     </div>`;
   renderChart();
 }

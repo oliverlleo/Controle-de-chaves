@@ -74,3 +74,5 @@ button[type="submit"]:hover { transform: translateY(-1px); background: #ff3047; 
 .modal-card { width: min(680px, 92vw); background:#17171b; border:1px solid #393944; border-radius: 16px; padding: 16px; }
 .modal-actions { display:flex; gap: 10px; grid-column: 1 / -1; }
 #cancel-movement { background:#2b2b32; }
+
+.modal[hidden] { display: none !important; }
