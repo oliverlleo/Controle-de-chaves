@@ -16,7 +16,9 @@ body { margin: 0; background: linear-gradient(140deg, #080809, #161618); color: 
 .sidebar h1 span { color: var(--red-soft); }
 .brand { display:flex; align-items:center; gap:10px; margin: 0 0 20px; font-size: 1.3rem; }
 .brand img { width: 34px; height: 34px; border-radius: 8px; object-fit: cover; }
-.brand span { color: #fff; font-weight: 800; letter-spacing: .2px; }
+.brand span { font-weight: 800; letter-spacing: .2px; }
+.brand .brand-perfecta { color: #fff; }
+.brand .brand-keys { color: var(--red-soft); }
 .sidebar h1 { margin: 0 0 20px; font-size: 1.5rem; }
 
 nav { display: grid; gap: 8px; }
