@@ -16,7 +16,8 @@ body { margin: 0; background: linear-gradient(140deg, #080809, #161618); color: 
 .sidebar h1 span { color: var(--red-soft); }
 .brand { display:flex; align-items:center; gap:10px; margin: 0 0 20px; font-size: 1.3rem; }
 .brand img { width: 36px; height: 36px; border-radius: 10px; object-fit: cover; box-shadow: 0 6px 16px rgba(224,24,45,.3); }
-.brand span { font-weight: 800; letter-spacing: .2px; background: linear-gradient(90deg, #ffffff 0 56%, #ff4b60 56% 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.brand .brand-name { font-weight: 800; letter-spacing: .2px; color: #fff; }
+.brand .brand-keys { color: var(--red-soft); }
 .sidebar h1 { margin: 0 0 20px; font-size: 1.5rem; }
 
 nav { display: grid; gap: 8px; }
