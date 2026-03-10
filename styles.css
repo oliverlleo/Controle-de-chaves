@@ -14,6 +14,11 @@ body { margin: 0; background: linear-gradient(140deg, #080809, #161618); color: 
 .sidebar { background: #0a0a0b; padding: 20px; border-right: 1px solid #2b2b31; }
 .sidebar h1 { margin: 0 0 20px; font-size: 1.5rem; }
 .sidebar h1 span { color: var(--red-soft); }
+.brand { display:flex; align-items:center; gap:10px; margin: 0 0 20px; font-size: 1.3rem; }
+.brand img { width: 34px; height: 34px; border-radius: 8px; object-fit: cover; }
+.brand span { color: #fff; font-weight: 800; letter-spacing: .2px; }
+.sidebar h1 { margin: 0 0 20px; font-size: 1.5rem; }
+
 nav { display: grid; gap: 8px; }
 nav button { background: transparent; color: var(--text); border: 1px solid #2f2f36; padding: 10px; border-radius: 10px; cursor: pointer; text-align: left; transition: all .25s; }
 nav button:hover, nav button.active { background: var(--red); border-color: var(--red-soft); transform: translateX(3px); }
