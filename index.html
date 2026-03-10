@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Controle de Chaves</title>
+    <title>PerfectaKeys</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -13,10 +13,11 @@
   <body>
     <div class="app-shell">
       <aside class="sidebar">
-        <h1>Key<span>Track</span></h1>
+        <h1 class="brand"><img src="logo-perfectakeys.svg" alt="Logo PerfectaKeys" /><span class="brand-name">Perfecta<span class="brand-keys">Keys</span></span></h1>
         <nav id="main-nav">
           <button data-target="dashboard" class="active">Dashboard</button>
           <button data-target="obras">Obras</button>
+          <button data-target="cadastros">Cadastros</button>
           <button data-target="portas">Portas</button>
           <button data-target="chaves">Chaves</button>
           <button data-target="movimentacoes">Movimentações</button>
@@ -33,7 +34,7 @@
         <header>
           <div id="system-alert" class="system-alert" hidden></div>
           <div>
-            <h2>Controle de Chaves</h2>
+            <h2>PerfectaKeys</h2>
             <p>Rastreabilidade total por obra, porta e movimentação.</p>
           </div>
           <input id="global-search" placeholder="Buscar obra, porta, pessoa ou status..." />
@@ -56,15 +57,32 @@
           <div class="panel"><h3>Lista de Obras</h3><div id="obras-list"></div></div>
         </section>
 
+
+        <section id="cadastros" class="page">
+          <div class="panel">
+            <h3>Cadastrar Prestador</h3>
+            <form id="prestador-form" class="grid-form">
+              <input required name="nome" placeholder="Nome do prestador" />
+              <input name="empresa" placeholder="Empresa (opcional)" />
+              <input name="contato" placeholder="Contato (opcional)" />
+              <button type="submit">Salvar prestador</button>
+            </form>
+          </div>
+          <div class="panel"><h3>Prestadores cadastrados</h3><div id="prestadores-list"></div></div>
+        </section>
+
         <section id="portas" class="page">
           <div class="panel">
             <h3>Cadastrar Porta</h3>
             <form id="porta-form" class="grid-form">
               <select required name="obraId" id="obra-select"></select>
-              <input required name="identificacao" placeholder="Identificação da porta (ex.: P01)" />
-              <input name="descricao" placeholder="Descrição da porta" />
               <textarea name="observacoes" placeholder="Observações"></textarea>
-              <button type="submit">Salvar porta e gerar 3 chaves</button>
+              <div class="porta-row-head"><span>Identificação</span><span>Descrição</span><span>Qtd cliente</span><span>Qtd instalação</span><span>Total</span><span></span></div>
+              <div id="porta-rows" class="porta-rows"></div>
+              <div class="porta-actions">
+                <button type="button" id="add-porta-row" class="ghost-btn">+ Adicionar outra porta</button>
+                <button id="save-porta-btn" type="submit">Salvar 1 porta(s) • 3 chave(s)</button>
+              </div>
             </form>
           </div>
           <div class="panel"><h3>Lista de Portas</h3><div id="portas-list"></div></div>
@@ -84,7 +102,7 @@
 
         <section id="movimentacoes" class="page">
           <div class="panel">
-            <h3>Movimentação rápida por chave</h3>
+            <div class="mov-head"><h3>Movimentação rápida por chave</h3><button id="open-batch-move" class="btn-movimentar">MOVIMENTAR</button></div>
             <input id="mov-search" placeholder="Filtrar cartões por obra, porta ou tipo..." />
             <div id="mov-cards" class="key-grid"></div>
           </div>
@@ -107,7 +125,8 @@
       <div class="modal-card">
         <h3 id="modal-title">Movimentar chave</h3>
         <form id="movement-form" class="grid-form">
-          <input id="mv-person" required placeholder="Nome da pessoa" />
+          <div id="mv-person-field"><input id="mv-person" placeholder="Nome da pessoa" /></div>
+          <div id="mv-provider-field" hidden><input id="mv-provider" list="providers-list" placeholder="Selecionar prestador" /><datalist id="providers-list"></datalist></div>
           <input id="mv-role" placeholder="Categoria/Papel (opcional)" />
           <input id="mv-datetime" type="datetime-local" required />
           <textarea id="mv-note" placeholder="Observação (opcional)"></textarea>
@@ -120,6 +139,36 @@
     </div>
 
 
+    <div id="batch-movement-modal" class="modal" hidden>
+      <div class="modal-card modal-xl">
+        <h3>Movimentar em lote</h3>
+        <div class="grid-form">
+          <select id="batch-obra-select"></select>
+          <input id="batch-person" placeholder="Responsável pela retirada/entrega" />
+          <input id="batch-role" placeholder="Categoria/Papel (opcional)" />
+          <input id="batch-datetime" type="datetime-local" />
+          <textarea id="batch-note" placeholder="Observação (opcional)"></textarea>
+        </div>
+        <div id="batch-keys-grid" class="batch-grid"></div>
+        <div class="modal-actions">
+          <button type="button" id="batch-close">Fechar</button>
+          <button type="button" id="batch-devolver">Devolver selecionadas</button>
+          <button type="button" id="batch-request-client" class="btn-movimentar">Requisitar ao Cliente</button>
+          <button type="button" id="batch-confirm-client" class="btn-movimentar">Confirmar entrega ao Cliente</button>
+          <button type="button" id="batch-request-inst" class="btn-inst">Entregue ao Instalador</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="key-history-modal" class="modal" hidden>
+      <div class="modal-card modal-lg">
+        <h3 id="key-history-title">Histórico da chave</h3>
+        <div id="key-history-body"></div>
+        <div class="modal-actions">
+          <button type="button" id="close-key-history">Fechar</button>
+        </div>
+      </div>
+    </div>
 
     <div id="client-keys-modal" class="modal" hidden>
       <div class="modal-card modal-lg">
