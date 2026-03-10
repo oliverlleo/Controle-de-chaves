@@ -68,7 +68,7 @@ function keyBuckets() {
     instalacaoAqui: state.chaves.filter((c) => c.disponivelAqui && c.tipoDestino === 'instalacao' && c.statusAtual !== 'entregue_cliente'),
     entregueCliente: state.chaves.filter((c) => c.statusAtual === 'entregue_cliente'),
     instalacaoEntregueCliente: state.chaves.filter((c) => c.tipoDestino === 'instalacao' && c.statusAtual === 'entregue_cliente'),
-    requisitadas: state.chaves.filter((c) => c.statusAtual === 'requisitada'),
+    requisitadas: state.chaves.filter((c) => c.statusAtual === 'requisitada' && c.tipoDestino === 'cliente'),
     devolvidasRecentes: state.movimentacoes.filter((m) => m.tipoMovimentacao === 'devolucao').slice(0, 8)
   };
 }
@@ -131,18 +131,28 @@ function renderDashboard() {
       <article class="card"><small>Instalação disponíveis aqui</small><strong>${b.instalacaoAqui.length}</strong></article>
       <article class="card"><small>Entregues ao cliente</small><strong>${b.entregueCliente.length}</strong></article>
       <article class="card"><small>Chaves de instalação entregues ao cliente</small><strong>${b.instalacaoEntregueCliente.length}</strong></article>
-      <article class="card"><small>Atualmente requisitadas</small><strong>${b.requisitadas.length}</strong></article>
+      <article class="card"><small>Chave a ser entregue ao cliente</small><strong>${b.requisitadas.length}</strong></article>
       <article class="card"><small>Devoluções recentes</small><strong>${b.devolvidasRecentes.length}</strong></article>
     </div>`;
 
   if (state.dashboardMode === 'resumida') {
     const resumoPorCategoria = `
+      <div class="dashboard-block">
+        <h3>Chave na empresa</h3>
+        <div class="dashboard-grid">
+          <div class="panel"><h3>Chaves do Cliente</h3>${renderClientSummaryByCategory(b.clienteAqui, 'clienteAqui', 'Chaves do Cliente')}</div>
+          <div class="panel"><h3>Chaves da Instalação</h3>${renderClientSummaryByCategory(b.instalacaoAqui, 'instalacaoAqui', 'Chaves da Instalação')}</div>
+        </div>
+      </div>
+      <div class="dashboard-block">
+        <h3>Chaves Entregues</h3>
+        <div class="dashboard-grid">
+          <div class="panel"><h3>Ao Cliente</h3>${renderClientSummaryByCategory(b.entregueCliente, 'entregueCliente', 'Ao Cliente')}</div>
+          <div class="panel"><h3>Com Instalador</h3>${renderClientSummaryByCategory(b.instalacaoEntregueCliente, 'instalacaoEntregueCliente', 'Com Instalador')}</div>
+        </div>
+      </div>
       <div class="dashboard-grid">
-        <div class="panel"><h3>Chaves do Cliente</h3>${renderClientSummaryByCategory(b.clienteAqui, 'clienteAqui', 'Chaves do Cliente')}</div>
-        <div class="panel"><h3>Chaves da Instalação</h3>${renderClientSummaryByCategory(b.instalacaoAqui, 'instalacaoAqui', 'Chaves da Instalação')}</div>
-        <div class="panel"><h3>Chaves Entregues ao Cliente</h3>${renderClientSummaryByCategory(b.entregueCliente, 'entregueCliente', 'Chaves Entregues ao Cliente')}</div>
-        <div class="panel"><h3>Chaves de Instalação Entregues ao Cliente</h3>${renderClientSummaryByCategory(b.instalacaoEntregueCliente, 'instalacaoEntregueCliente', 'Chaves de Instalação Entregues ao Cliente')}</div>
-        <div class="panel"><h3>Chaves Requisitadas</h3>${renderClientSummaryByCategory(b.requisitadas, 'requisitadas', 'Chaves Requisitadas')}</div>
+        <div class="panel"><h3>Chave a ser entregue ao cliente</h3>${renderClientSummaryByCategory(b.requisitadas, 'requisitadas', 'Chave a ser entregue ao cliente')}</div>
         <div class="panel"><h3>Devoluções Recentes</h3>${renderMoveMiniList(b.devolvidasRecentes)}</div>
       </div>`;
     el('dashboard').innerHTML = `${header}${metrics}${resumoPorCategoria}`;
@@ -151,12 +161,22 @@ function renderDashboard() {
   }
 
   const kaban = `
+    <div class="dashboard-block">
+      <h3>Chave na empresa</h3>
+      <div class="dashboard-grid">
+        <div class="panel"><h3>Chaves do Cliente</h3>${renderKeyMiniList(b.clienteAqui)}</div>
+        <div class="panel"><h3>Chaves da Instalação</h3>${renderKeyMiniList(b.instalacaoAqui)}</div>
+      </div>
+    </div>
+    <div class="dashboard-block">
+      <h3>Chaves Entregues</h3>
+      <div class="dashboard-grid">
+        <div class="panel"><h3>Ao Cliente</h3>${renderKeyMiniList(b.entregueCliente)}</div>
+        <div class="panel"><h3>Com Instalador</h3>${renderKeyMiniList(b.instalacaoEntregueCliente)}</div>
+      </div>
+    </div>
     <div class="dashboard-grid">
-      <div class="panel"><h3>Chaves do Cliente</h3>${renderKeyMiniList(b.clienteAqui)}</div>
-      <div class="panel"><h3>Chaves da Instalação</h3>${renderKeyMiniList(b.instalacaoAqui)}</div>
-      <div class="panel"><h3>Chaves Entregues ao Cliente</h3>${renderKeyMiniList(b.entregueCliente)}</div>
-      <div class="panel"><h3>Chaves de Instalação Entregues ao Cliente</h3>${renderKeyMiniList(b.instalacaoEntregueCliente)}</div>
-      <div class="panel"><h3>Chaves Requisitadas</h3>${renderKeyMiniList(b.requisitadas)}</div>
+      <div class="panel"><h3>Chave a ser entregue ao cliente</h3>${renderKeyMiniList(b.requisitadas)}</div>
       <div class="panel"><h3>Devoluções Recentes</h3>${renderMoveMiniList(b.devolvidasRecentes)}</div>
     </div>`;
 

@@ -97,6 +97,9 @@ body.modal-open { overflow: hidden; }
 }
 
 .dashboard-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(280px,1fr)); gap: 10px; }
+.dashboard-block { margin: 8px 0 12px; }
+.dashboard-block > h3 { margin: 0 0 8px; color: #f1f1f4; }
+
 .mini-list { display:grid; gap: 6px; }
 .mini-item { padding: 8px; border:1px solid #34343d; border-radius: 8px; background:#151518; }
 .mini-item-action { width: 100%; text-align: left; color: var(--text); cursor: pointer; transition: transform .2s, border-color .2s, background .2s; animation: rise .25s ease both; }
