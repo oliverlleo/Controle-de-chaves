@@ -17,6 +17,7 @@
         <nav id="main-nav">
           <button data-target="dashboard" class="active">Dashboard</button>
           <button data-target="obras">Obras</button>
+          <button data-target="cadastros">Cadastros</button>
           <button data-target="portas">Portas</button>
           <button data-target="chaves">Chaves</button>
           <button data-target="movimentacoes">Movimentações</button>
@@ -54,6 +55,20 @@
             </form>
           </div>
           <div class="panel"><h3>Lista de Obras</h3><div id="obras-list"></div></div>
+        </section>
+
+
+        <section id="cadastros" class="page">
+          <div class="panel">
+            <h3>Cadastrar Prestador</h3>
+            <form id="prestador-form" class="grid-form">
+              <input required name="nome" placeholder="Nome do prestador" />
+              <input name="empresa" placeholder="Empresa (opcional)" />
+              <input name="contato" placeholder="Contato (opcional)" />
+              <button type="submit">Salvar prestador</button>
+            </form>
+          </div>
+          <div class="panel"><h3>Prestadores cadastrados</h3><div id="prestadores-list"></div></div>
         </section>
 
         <section id="portas" class="page">
@@ -110,7 +125,8 @@
       <div class="modal-card">
         <h3 id="modal-title">Movimentar chave</h3>
         <form id="movement-form" class="grid-form">
-          <input id="mv-person" required placeholder="Nome da pessoa" />
+          <div id="mv-person-field"><input id="mv-person" placeholder="Nome da pessoa" /></div>
+          <div id="mv-provider-field" hidden><input id="mv-provider" list="providers-list" placeholder="Selecionar prestador" /><datalist id="providers-list"></datalist></div>
           <input id="mv-role" placeholder="Categoria/Papel (opcional)" />
           <input id="mv-datetime" type="datetime-local" required />
           <textarea id="mv-note" placeholder="Observação (opcional)"></textarea>

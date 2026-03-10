@@ -3,7 +3,7 @@ import {
   serverTimestamp, query, orderBy, onSnapshot
 } from './firebase.js';
 
-const state = { uid: 'sem-auth', obras: [], portas: [], chaves: [], movimentacoes: [], authOk: false, pendingMove: null, dashboardMode: 'resumida', dashboardBuckets: {}, batchSelection: { cliente: new Set(), instalacao: new Set() } };
+const state = { uid: 'sem-auth', obras: [], portas: [], chaves: [], movimentacoes: [], prestadores: [], authOk: false, pendingMove: null, dashboardMode: 'resumida', dashboardBuckets: {}, batchSelection: { cliente: new Set(), instalacao: new Set() } };
 const STATUSES = ['separada_cliente', 'separada_instalacao', 'requisitada', 'entregue_cliente', 'indisponivel'];
 const el = (id) => document.getElementById(id);
 const toast = (msg) => { const t = el('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2200); };
@@ -217,6 +217,22 @@ function renderObras() {
   const ops = '<option value="">Selecione a obra</option>' + state.obras.map((o) => `<option value="${o.id}">${o.nome}</option>`).join('');
   el('obra-select').innerHTML = ops;
   el('filter-obra').innerHTML = '<option value="">Todas as obras</option>' + state.obras.map((o) => `<option value="${o.id}">${o.nome}</option>`).join('');
+}
+
+function refreshProviderOptions() {
+  const list = el('providers-list');
+  if (!list) return;
+  list.innerHTML = state.prestadores.map((p) => `<option value="${p.nome}">${p.empresa || ''}</option>`).join('');
+}
+
+function renderCadastros() {
+  const host = el('prestadores-list');
+  if (!host) return;
+  host.innerHTML = table(
+    ['Nome', 'Empresa', 'Contato', 'Ações'],
+    state.prestadores.map((p) => `<tr><td>${p.nome}</td><td>${p.empresa || '-'}</td><td>${p.contato || '-'}</td><td><button data-edit-prestador="${p.id}">Editar</button> <button data-del-prestador="${p.id}">Excluir</button></td></tr>`)
+  );
+  refreshProviderOptions();
 }
 
 function renderPortas() {
@@ -506,6 +522,15 @@ function bindForms() {
     }, 'Obra cadastrada com sucesso');
   };
 
+  el('prestador-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const payload = Object.fromEntries(new FormData(e.target));
+    await runDb(async () => {
+      await addDoc(collection(db, 'prestadores'), { ...payload, dataCadastro: serverTimestamp() });
+      e.target.reset();
+    }, 'Prestador cadastrado com sucesso');
+  };
+
   el('porta-form').onsubmit = async (e) => {
     e.preventDefault();
     const form = e.target;
@@ -622,12 +647,12 @@ function bindForms() {
     e.preventDefault();
     if (!state.pendingMove) return;
     const payload = {
-      nomePessoa: el('mv-person').value.trim(),
+      nomePessoa: (state.pendingMove?.useProvider ? el('mv-provider').value.trim() : el('mv-person').value.trim()),
       categoriaPessoa: el('mv-role').value.trim(),
       observacao: el('mv-note').value.trim(),
       dataHoraISO: el('mv-datetime').value
     };
-    if (!payload.nomePessoa || !payload.dataHoraISO) return toast('Informe nome e data/hora.');
+    if (!payload.nomePessoa || !payload.dataHoraISO) return toast('Informe responsável e data/hora.');
     await runDb(() => applyMovement(state.pendingMove.keyId, state.pendingMove.type, payload), 'Movimentação registrada');
     closeModal();
   };
@@ -637,13 +662,22 @@ function bindForms() {
 }
 
 function openModal(keyId, type) {
-  state.pendingMove = { keyId, type };
+  const useProvider = type === 'requisicao';
+  state.pendingMove = { keyId, type, useProvider };
   const labels = { requisicao: 'Requisitar chave', devolucao: 'Confirmar devolução', entrega_cliente: 'Confirmar entrega ao cliente' };
   el('modal-title').textContent = labels[type] || `Confirmar ${type.replace('_', ' ')}`;
+
+  el('mv-provider-field').hidden = !useProvider;
+  el('mv-person-field').hidden = useProvider;
+  el('mv-provider').required = useProvider;
+  el('mv-person').required = !useProvider;
+
+  el('mv-provider').value = '';
   el('mv-person').value = '';
   el('mv-role').value = '';
   el('mv-note').value = '';
   el('mv-datetime').value = isoLocal();
+  refreshProviderOptions();
   el('movement-modal').hidden = false;
   setBodyModalLock();
 }
@@ -664,6 +698,23 @@ function bindActions() {
 
     const kid = e.target.dataset.delChave;
     if (kid && confirm('Excluir chave?')) await runDb(() => deleteDoc(doc(db, 'chaves', kid)), 'Chave excluída');
+
+
+    const prestId = e.target.dataset.delPrestador;
+    if (prestId && confirm('Excluir prestador?')) await runDb(() => deleteDoc(doc(db, 'prestadores', prestId)), 'Prestador excluído');
+
+    const editPrest = e.target.dataset.editPrestador;
+    if (editPrest) {
+      const prest = state.prestadores.find((p) => p.id === editPrest);
+      if (!prest) return toast('Prestador não encontrado');
+      const nome = prompt('Nome do prestador:', prest.nome || '');
+      if (nome === null) return;
+      const empresa = prompt('Empresa (opcional):', prest.empresa || '');
+      if (empresa === null) return;
+      const contato = prompt('Contato (opcional):', prest.contato || '');
+      if (contato === null) return;
+      await runDb(() => updateDoc(doc(db, 'prestadores', editPrest), { nome: nome.trim(), empresa: empresa.trim(), contato: contato.trim() }), 'Prestador atualizado');
+    }
 
     const eid = e.target.dataset.editObra;
     if (eid) {
@@ -728,6 +779,7 @@ function bindCollection(name, setter) {
   onSnapshot(query(collection(db, name), orderBy(name === 'movimentacoes' ? 'dataHora' : 'dataCadastro', 'desc')), (snap) => {
     setter(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
     renderObras();
+    renderCadastros();
     renderPortas();
     renderChaves();
     renderDashboard();
@@ -746,6 +798,7 @@ function subscribe() {
   bindCollection('portas', (rows) => { state.portas = rows; });
   bindCollection('chaves', (rows) => { state.chaves = rows; });
   bindCollection('movimentacoes', (rows) => { state.movimentacoes = rows; });
+  bindCollection('prestadores', (rows) => { state.prestadores = rows; });
 }
 
 function bindNavigation() {
